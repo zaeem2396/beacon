@@ -1,0 +1,11 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 9
+    tmpDir: build/phpstan
+    paths:
+        - src
+        - tests
+    # Public entry points validate input from callers that are not statically analysed.
+    treatPhpDocTypesAsCertain: false
