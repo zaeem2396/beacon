@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Beacon;
 
+use Beacon\Contracts\Authenticator;
 use Beacon\Contracts\Authorizer;
 use Beacon\Contracts\Redactor;
 use Beacon\Core\Beacon;
 use Beacon\Core\BeaconConfig;
 use Beacon\Core\InspectorRegistry;
 use Beacon\Mcp\BeaconMcpServiceProvider;
+use Beacon\Security\BearerTokenAuthenticator;
 use Beacon\Security\CapabilityAuthorizer;
 use Beacon\Security\CapabilityPolicy;
 use Beacon\Security\KeyPatternRedactor;
@@ -35,6 +37,7 @@ final class BeaconServiceProvider extends ServiceProvider
 
         $this->app->singleton(CapabilityPolicy::class);
         $this->app->singleton(Authorizer::class, CapabilityAuthorizer::class);
+        $this->app->singleton(Authenticator::class, BearerTokenAuthenticator::class);
         $this->app->singleton(InspectorRegistry::class);
         $this->app->singleton(Beacon::class);
 

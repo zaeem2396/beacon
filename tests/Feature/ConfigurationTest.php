@@ -61,6 +61,37 @@ final class ConfigurationTest extends TestCase
     }
 
     #[Test]
+    public function invalid_http_values_fall_back_to_secure_defaults(): void
+    {
+        config()->set('beacon.mcp.http.enabled', 'not-a-boolean');
+        config()->set('beacon.mcp.http.require_https', 'not-a-boolean');
+        config()->set('beacon.mcp.http.path', 'beacon/mcp?token=x');
+
+        $config = $this->beaconConfig();
+
+        $this->assertFalse($config->mcpHttpEnabled());
+        $this->assertTrue($config->mcpHttpRequiresHttps());
+        $this->assertSame(BeaconConfig::DEFAULT_HTTP_PATH, $config->mcpHttpPath());
+    }
+
+    #[Test]
+    public function the_http_path_is_normalized(): void
+    {
+        config()->set('beacon.mcp.http.path', ' /internal/beacon/ ');
+
+        $this->assertSame('internal/beacon', $this->beaconConfig()->mcpHttpPath());
+    }
+
+    #[Test]
+    public function only_sufficiently_long_tokens_are_accepted(): void
+    {
+        config()->set('beacon.auth.token', str_repeat('a', BeaconConfig::MINIMUM_TOKEN_LENGTH));
+        config()->set('beacon.auth.previous_token', 'too-short');
+
+        $this->assertSame(['current' => str_repeat('a', BeaconConfig::MINIMUM_TOKEN_LENGTH)], $this->beaconConfig()->acceptedTokens());
+    }
+
+    #[Test]
     public function it_reads_inspector_configuration(): void
     {
         config()->set('beacon.inspectors.routes', ['enabled' => false, 'limit' => 50]);
