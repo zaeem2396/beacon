@@ -49,11 +49,18 @@ final class KeyPatternRedactor implements Redactor
         'otp',
     ];
 
+    /**
+     * Matched anywhere in a string, so a secret embedded in a longer text such
+     * as an exception message causes the whole string to be redacted.
+     */
     private const SENSITIVE_VALUE_PATTERNS = [
         '/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/',
         '#\b[a-z][a-z0-9+.-]*://[^/\s:@]*:[^/\s@]+@#i',
-        '/^base64:[A-Za-z0-9+\/=]{32,}$/',
-        '/^(Bearer|Basic)\s+\S+/i',
+        '/\bbase64:[A-Za-z0-9+\/]{32,}={0,2}/',
+        '/^(Bearer|Basic)\s+[A-Za-z0-9\-._~+\/]+=*$/i',
+        '/\bBearer\s+[A-Za-z0-9\-._~+\/]{16,}=*/i',
+        '/\bBasic\s+[A-Za-z0-9+\/]{16,}={0,2}/',
+        '/(?<![a-z])(password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret|private[_-]?key)["\']?\s*[:=]\s*["\']?[^\s"\'&;,()]{4,}/i',
         '/\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/',
         '/\b(AKIA|ASIA)[0-9A-Z]{16}\b/',
         '/\b(gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})/',

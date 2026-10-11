@@ -6,28 +6,39 @@ namespace Beacon\Security;
 
 use Beacon\Contracts\Authorizer;
 use Beacon\Core\BeaconConfig;
+use Beacon\Events\AuthorizationEvaluated;
 use Beacon\Exceptions\AuthorizationException;
+use Illuminate\Contracts\Events\Dispatcher;
 
 final class CapabilityAuthorizer implements Authorizer
 {
     public function __construct(
         private readonly BeaconConfig $config,
         private readonly CapabilityPolicy $policy,
+        private readonly ?Dispatcher $events = null,
     ) {
     }
 
-    public function decide(Capability $capability): AuthorizationDecision
+    public function decide(Principal $principal, Capability $capability): AuthorizationDecision
     {
-        if (! $this->config->enabled()) {
-            return AuthorizationDecision::deny('Beacon is disabled.');
-        }
+        $decision = $this->config->enabled()
+            ? $this->policy->evaluate($principal, $capability)
+            : AuthorizationDecision::deny('Beacon is disabled.');
 
-        return $this->policy->evaluate($capability);
+        $this->events?->dispatch(new AuthorizationEvaluated(
+            $principal->id,
+            $principal->method,
+            (string) $capability,
+            $decision->allowed,
+            $decision->reason,
+        ));
+
+        return $decision;
     }
 
-    public function authorize(Capability $capability): void
+    public function authorize(Principal $principal, Capability $capability): void
     {
-        $decision = $this->decide($capability);
+        $decision = $this->decide($principal, $capability);
 
         if (! $decision->allowed) {
             throw AuthorizationException::denied($capability, $decision);

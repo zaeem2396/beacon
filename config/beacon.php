@@ -77,14 +77,23 @@ return [
     | Security
     |--------------------------------------------------------------------------
     |
-    | Capabilities an AI client may use, e.g. ["application", "routes"], or
-    | ["*"] for every registered read capability. Beacon v0.x is read-only:
-    | mutating capabilities are always denied and cannot be enabled here.
+    | Capabilities an authenticated client may use. Nothing is allowed by
+    | default. List capabilities explicitly, e.g.
+    | BEACON_ALLOWED_CAPABILITIES=application,routes, or use "*" for every
+    | registered capability.
+    |
+    | Available: application, environment, routes, config, database,
+    | migrations, exceptions, queue, health. Unregistered names are ignored.
+    | Beacon v0.x is read-only: mutating capabilities are always denied and
+    | cannot be enabled here.
     |
     */
 
     'security' => [
-        'allowed_capabilities' => ['*'],
+        'allowed_capabilities' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('BEACON_ALLOWED_CAPABILITIES', '')),
+        ))),
     ],
 
     /*

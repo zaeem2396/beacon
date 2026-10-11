@@ -8,6 +8,9 @@ use Beacon\Core\Beacon;
 use Beacon\Core\InspectorRegistry;
 use Beacon\Exceptions\AuthorizationException;
 use Beacon\Exceptions\InspectorNotFoundException;
+use Beacon\Security\Capability;
+use Beacon\Security\CapabilityRegistry;
+use Beacon\Security\Principal;
 use Beacon\Tests\Fixtures\ApplicationInspector;
 use Beacon\Tests\Fixtures\LeakyInspector;
 use Beacon\Tests\Fixtures\MutatingInspector;
@@ -21,7 +24,7 @@ final class BeaconInspectionTest extends TestCase
     {
         $this->registry()->register('application', ApplicationInspector::class);
 
-        $payload = $this->beacon()->inspect('application', ['detail' => 'full']);
+        $payload = $this->beacon()->inspect($this->caller(), 'application', ['detail' => 'full']);
 
         $this->assertSame([
             'laravel_version' => '13.0.0',
@@ -50,7 +53,7 @@ final class BeaconInspectionTest extends TestCase
     {
         $this->expectException(InspectorNotFoundException::class);
 
-        $this->beacon()->inspect('missing');
+        $this->beacon()->inspect($this->caller(), 'missing');
     }
 
     #[Test]
@@ -62,7 +65,7 @@ final class BeaconInspectionTest extends TestCase
         $this->expectException(InspectorNotFoundException::class);
         $this->expectExceptionMessage('disabled');
 
-        $this->beacon()->inspect('application');
+        $this->beacon()->inspect($this->caller(), 'application');
     }
 
     #[Test]
@@ -90,7 +93,7 @@ final class BeaconInspectionTest extends TestCase
         $this->expectException(AuthorizationException::class);
         $this->expectExceptionMessage('read-only');
 
-        $this->beacon()->inspect('cache');
+        $this->beacon()->inspect($this->caller(), 'cache');
     }
 
     #[Test]
@@ -101,7 +104,7 @@ final class BeaconInspectionTest extends TestCase
 
         $this->expectException(AuthorizationException::class);
 
-        $this->beacon()->inspect('application');
+        $this->beacon()->inspect($this->caller(), 'application');
     }
 
     #[Test]
@@ -113,15 +116,16 @@ final class BeaconInspectionTest extends TestCase
         $this->expectException(AuthorizationException::class);
         $this->expectExceptionMessage('Beacon is disabled');
 
-        $this->beacon()->inspect('application');
+        $this->beacon()->inspect($this->caller(), 'application');
     }
 
     #[Test]
     public function secrets_leaked_by_an_inspector_never_reach_the_payload(): void
     {
+        $this->application()->make(CapabilityRegistry::class)->register(Capability::read('leaky'), 'Test-only leaky data.');
         $this->registry()->register('leaky', LeakyInspector::class);
 
-        $payload = $this->beacon()->inspect('leaky');
+        $payload = $this->beacon()->inspect($this->caller(), 'leaky');
         $json = $payload->toJson();
 
         foreach (LeakyInspector::SECRETS as $secret) {
@@ -139,6 +143,46 @@ final class BeaconInspectionTest extends TestCase
         $this->assertSame('eu-west-1', data_get($data, 'config.filesystems.disks.s3.region'));
         $this->assertSame('[REDACTED]', data_get($data, 'config.filesystems.disks.s3.secret'));
         $this->assertSame('smtp.example.com', data_get($data, 'config.mail.mailers.smtp.host'));
+    }
+
+    #[Test]
+    public function nothing_is_allowed_with_an_empty_allowlist(): void
+    {
+        config()->set('beacon.security.allowed_capabilities', []);
+        $this->registry()->register('application', ApplicationInspector::class);
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('not allowed');
+
+        $this->beacon()->inspect($this->caller(), 'application');
+    }
+
+    #[Test]
+    public function inspectors_with_unregistered_capabilities_are_denied_even_when_listed(): void
+    {
+        $this->registry()->register('leaky', LeakyInspector::class);
+
+        try {
+            $this->beacon()->inspect($this->caller(), 'leaky');
+            $this->fail('An unregistered capability was allowed.');
+        } catch (AuthorizationException $exception) {
+            $this->assertStringContainsString('not registered', $exception->getMessage());
+        }
+
+        config()->set('beacon.security.allowed_capabilities', ['*']);
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->beacon()->inspect($this->caller(), 'leaky');
+    }
+    protected function defineEnvironment($app): void
+    {
+        $app['config']->set('beacon.security.allowed_capabilities', ['application', 'leaky']);
+    }
+
+    private function caller(): Principal
+    {
+        return Principal::local();
     }
 
     private function beacon(): Beacon

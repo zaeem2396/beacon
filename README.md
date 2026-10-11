@@ -2,7 +2,7 @@
 
 Laravel Beacon exposes safe, structured production information about a Laravel application to AI agents (Claude, Cursor and other MCP clients) so they can investigate production problems using real application evidence.
 
-> **Status:** early development (v0.1). The package foundation, the MCP server foundation and MCP authentication are in place. Inspectors, MCP tools and Artisan commands are not implemented yet. See [ROADMAP.md](ROADMAP.md).
+> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication and the read-only security model are in place. Inspectors, MCP tools and Artisan commands are not implemented yet. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -31,6 +31,7 @@ Beacon is read-only and closed by default:
   - the current environment is listed in `BEACON_MCP_ENVIRONMENTS` (default: `local`)
 - **Production must be opted into explicitly**, e.g. `BEACON_MCP_ENVIRONMENTS=local,production`.
 - **The HTTP transport is a separate opt-in** (`BEACON_MCP_HTTP_ENABLED=true`). Every HTTP request must present the token as a bearer token over HTTPS.
+- **No capability is allowed.** Even an authenticated client can do nothing until you list capabilities in `BEACON_ALLOWED_CAPABILITIES`. See [Authorization and the read-only model](#authorization-and-the-read-only-model).
 - **Mutating capabilities are always denied.** This cannot be changed through configuration.
 - **Sensitive values are always redacted.** Keys such as `APP_KEY`, `DB_PASSWORD`, `AWS_SECRET_ACCESS_KEY`, `Authorization` or `Cookie`, and values that look like secrets (private keys, credentials in URLs, bearer tokens, JWTs, cloud API keys), are replaced with `[REDACTED]`. You can add your own keys under `redaction.additional_keys`, but the built-in rules cannot be removed.
 
@@ -43,6 +44,7 @@ BEACON_MCP_ENVIRONMENTS=local
 BEACON_MCP_HTTP_ENABLED=false
 BEACON_MCP_HTTP_PATH=beacon/mcp
 BEACON_MCP_HTTP_REQUIRE_HTTPS=true
+BEACON_ALLOWED_CAPABILITIES=
 ```
 
 ## MCP server
@@ -180,7 +182,7 @@ Authentication is resolved through the `Beacon\Contracts\Authenticator` contract
 $this->app->singleton(\Beacon\Contracts\Authenticator::class, MyAuthenticator::class);
 ```
 
-Per-client permissions are not implemented yet. All authenticated clients share the capabilities allowed in `security.allowed_capabilities`.
+What an authenticated client may do is decided separately; see [Authorization and the read-only model](#authorization-and-the-read-only-model).
 
 ### Current limitations
 
@@ -190,17 +192,114 @@ Per-client permissions are not implemented yet. All authenticated clients share 
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
 - **No tools, resources or prompts.** The server completes the MCP handshake and answers `ping` and the list methods with empty lists. It exposes no application data.
 
-### Extending the server
+## Authorization and the read-only model
 
-Beacon modules expose MCP primitives by registering them explicitly. Nothing is exposed otherwise:
+**Authentication** establishes *who* is calling: the local process for stdio, or a bearer-token client for HTTP. **Authorization** decides *what* that caller may do. They are separate: `Beacon\Contracts\Authenticator` produces a `Principal`, and `Beacon\Contracts\Authorizer` decides whether that principal may use a capability.
 
-```php
-use Beacon\Mcp\McpRegistry;
+### Capabilities
 
-$this->app->make(McpRegistry::class)->tool(GetRoutesTool::class);
+Every operation that exposes application information requires exactly one capability. Beacon defines these read-only capabilities (`Beacon\Security\InspectionCapability`):
+
+| Capability    | Covers                                                        |
+| ------------- | ------------------------------------------------------------- |
+| `application` | Application metadata (Laravel and PHP versions, name)         |
+| `environment` | Environment metadata and unsafe-configuration findings        |
+| `routes`      | Routes, HTTP methods, middleware and route metadata           |
+| `config`      | Selected configuration values, with secrets masked            |
+| `database`    | Database status and schema metadata, without credentials      |
+| `migrations`  | Migration status, history and risk analysis                   |
+| `exceptions`  | Recent exceptions in sanitized form                           |
+| `queue`       | Queue and failed-job metadata                                 |
+| `health`      | Application and infrastructure health results                 |
+
+These define permissions for upcoming inspectors. No inspector or tool using them ships yet.
+
+### Default deny
+
+A capability is allowed only when **all** of these hold:
+
+1. It is **read-only**. Mutating capabilities are always denied and cannot even be registered.
+2. It is **registered** in `Beacon\Security\CapabilityRegistry`. Unknown names (`shell`, `sql`, ...) are denied, even when listed in the configuration or declared by a tool.
+3. It is **explicitly allowed**:
+
+```dotenv
+BEACON_ALLOWED_CAPABILITIES=application,routes,health
 ```
 
-MCP tools must stay thin: they call `Beacon::inspect()` and return its redacted `Payload`, and never query Laravel internals directly.
+The default is empty, so nothing is allowed. `*` allows every registered capability. Beacon also denies everything while `BEACON_ENABLED=false`.
+
+All authenticated clients currently share this allowlist. Authorization already receives the caller's `Principal`, so per-client grants can be added later without changing tools.
+
+### Where authorization is enforced
+
+- **MCP execution boundary.** `Beacon\Mcp\ExecutionGate` runs before any MCP method is handled:
+  - `tools/call`, `resources/read`, `prompts/get` and `completion/complete` require a caller identity plus the target primitive's declared capability.
+  - Describing methods (`initialize`, `ping`, the `*/list` methods) need no capability. Denied tools still appear in `tools/list` but cannot run.
+  - Every other method is denied.
+  - All denials return the same JSON-RPC error (`-32001`, "Permission denied."), with no reason, capability name or configuration detail.
+- **Caller identity.** stdio callers are the local process. HTTP callers are only the `Principal` set by Beacon's authentication middleware. Client-supplied headers or metadata are never trusted, and a request that reached the server any other way has no identity, so nothing executes.
+- **Inspections.** `Beacon::inspect($principal, $name)` requires a principal and authorizes the inspector's capability, for MCP and any future CLI alike.
+
+Every decision dispatches a `Beacon\Events\AuthorizationEvaluated` event: principal id, authentication method, capability, outcome and reason, never credentials. Listen to it to write your own audit log. Beacon itself logs nothing and sends nothing anywhere.
+
+### Sensitive data
+
+- **Typed output only.** Inspectors return typed `Data` objects with an explicit set of fields, never whole configuration arrays or framework objects. Anything else cannot be normalized and is rejected.
+- **Redacted payloads.** Every `Payload` is redacted by key and by value before it leaves the core.
+- **Sanitized MCP responses.** Every MCP message, including error messages that laravel/mcp returns verbatim while `APP_DEBUG=true`, passes through `Beacon\Mcp\ResponseSanitizer`. It replaces any string that contains a recognisable secret, such as:
+  - credentials in URLs
+  - `password=` / `api_key:` style assignments
+  - bearer and basic credentials
+  - Laravel app keys, JWTs, private keys and cloud or API tokens
+- **Whole-string replacement.** When a string contains a secret, the entire string becomes `[REDACTED]`. Some legitimate text (for example "token: expired") is redacted too; Beacon prefers losing a message to leaking a secret.
+
+### Read-only guarantees and limitations
+
+Beacon v0.1 only inspects and reports. MCP clients cannot, and Beacon provides no tools to:
+
+- execute PHP, shell commands, Artisan commands or SQL
+- modify configuration, files, database records or schema
+- trigger deployments, clear caches or restart workers
+- retry, delete or otherwise mutate queued jobs
+- invoke operations that are not explicitly registered
+
+"Read-only" is a property Beacon enforces on *capabilities*, not a guarantee about arbitrary code. Inspectors must use purpose-built, side-effect-free operations, and the label alone does not make code safe. Redaction is pattern-based and cannot recognise every possible secret, so only allow the capabilities you need.
+
+### Adding MCP tools
+
+Every MCP tool, resource and prompt must implement `Beacon\Contracts\RequiresCapability`. `McpRegistry` rejects anything that does not, and registering a tool never grants its capability:
+
+```php
+use Beacon\Contracts\RequiresCapability;
+use Beacon\Core\Beacon;
+use Beacon\Security\Capability;
+use Beacon\Security\InspectionCapability;
+use Beacon\Security\Principal;
+use Laravel\Mcp\Request;
+use Laravel\Mcp\Response;
+use Laravel\Mcp\Server\Tool;
+
+final class GetRoutesTool extends Tool implements RequiresCapability
+{
+    public function capability(): Capability
+    {
+        return InspectionCapability::Routes->capability();
+    }
+
+    public function handle(Request $request, Beacon $beacon, Principal $caller): Response
+    {
+        return Response::json($beacon->inspect($caller, 'routes')->toArray());
+    }
+}
+
+$this->app->make(\Beacon\Mcp\McpRegistry::class)->tool(GetRoutesTool::class);
+```
+
+Tools must stay thin: they call `Beacon::inspect()` with the injected `Principal` and return its redacted `Payload`. They never query Laravel internals directly or check permissions themselves. Packages that add a new kind of inspection register its read capability explicitly:
+
+```php
+app(\Beacon\Security\CapabilityRegistry::class)->register(Capability::read('horizon'), 'Horizon supervisor metadata.');
+```
 
 ## Architecture
 
@@ -214,12 +313,13 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 
 | Namespace           | Responsibility                                                                                                                                      |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`                                                            |
+| `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
 | `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config)                                              |
 | `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, shared DTOs (`SafeValue`, `HealthCheckResult`)                                                                  |
-| `Beacon\Security`   | `Capability`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `BearerTokenAuthenticator`, `Principal`                              |
+| `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `BearerTokenAuthenticator`, `Principal` |
+| `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
 | `Beacon\Health`     | `HealthStatus`                                                                                                                                      |
-| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `Http\AuthenticateMcpRequest`. The only namespace that depends on `laravel/mcp`.                |
+| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`. The only namespace that depends on `laravel/mcp`. |
 
 Inspectors know nothing about MCP. Consumers call `Beacon::inspect()`, which authorizes the inspector's capability, runs it and returns a `Payload`. A `Payload` can only be built from `Data` and is always normalized and redacted, so a secret copied into a DTO by mistake is still removed before output.
 
@@ -230,6 +330,8 @@ use Beacon\Contracts\Data;
 use Beacon\Contracts\Inspector;
 use Beacon\Data\DataObject;
 use Beacon\Security\Capability;
+use Beacon\Security\InspectionCapability;
+use Beacon\Security\Principal;
 
 final readonly class ApplicationInfo extends DataObject
 {
@@ -244,7 +346,7 @@ final class ApplicationInspector implements Inspector
 {
     public function capability(): Capability
     {
-        return Capability::read('application');
+        return InspectionCapability::Application->capability();
     }
 
     public function inspect(array $parameters = []): Data
@@ -255,7 +357,8 @@ final class ApplicationInspector implements Inspector
 
 app(\Beacon\Core\InspectorRegistry::class)->register('application', ApplicationInspector::class);
 
-app(\Beacon\Core\Beacon::class)->inspect('application')->toArray();
+// Requires BEACON_ALLOWED_CAPABILITIES to include "application".
+app(\Beacon\Core\Beacon::class)->inspect(Principal::local(), 'application')->toArray();
 // ['laravel_version' => '13.x', 'php_version' => '8.3.x']
 ```
 

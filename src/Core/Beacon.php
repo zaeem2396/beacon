@@ -8,6 +8,7 @@ use Beacon\Contracts\Authorizer;
 use Beacon\Contracts\Redactor;
 use Beacon\Exceptions\AuthorizationException;
 use Beacon\Exceptions\InspectorNotFoundException;
+use Beacon\Security\Principal;
 
 /**
  * Entry point that consumers (MCP, CLI, ...) use to obtain Beacon data.
@@ -30,16 +31,18 @@ final class Beacon
     }
 
     /**
+     * The caller's identity is required: there is no anonymous inspection.
+     *
      * @param array<string, scalar|null> $parameters
      *
      * @throws InspectorNotFoundException
      * @throws AuthorizationException
      */
-    public function inspect(string $name, array $parameters = []): Payload
+    public function inspect(Principal $principal, string $name, array $parameters = []): Payload
     {
         $inspector = $this->inspectors->get($name);
 
-        $this->authorizer->authorize($inspector->capability());
+        $this->authorizer->authorize($principal, $inspector->capability());
 
         return Payload::fromData($inspector->inspect($parameters), $this->redactor);
     }
