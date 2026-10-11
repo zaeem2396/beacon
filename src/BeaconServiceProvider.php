@@ -9,6 +9,7 @@ use Beacon\Contracts\Redactor;
 use Beacon\Core\Beacon;
 use Beacon\Core\BeaconConfig;
 use Beacon\Core\InspectorRegistry;
+use Beacon\Mcp\BeaconMcpServiceProvider;
 use Beacon\Security\CapabilityAuthorizer;
 use Beacon\Security\CapabilityPolicy;
 use Beacon\Security\KeyPatternRedactor;
@@ -36,6 +37,8 @@ final class BeaconServiceProvider extends ServiceProvider
         $this->app->singleton(Authorizer::class, CapabilityAuthorizer::class);
         $this->app->singleton(InspectorRegistry::class);
         $this->app->singleton(Beacon::class);
+
+        $this->app->register(BeaconMcpServiceProvider::class);
     }
 
     public function boot(): void
