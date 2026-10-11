@@ -28,6 +28,10 @@ return [
     | Production is intentionally absent from the default list: exposing
     | Beacon over MCP in production must be an explicit decision.
     |
+    | Requires the laravel/mcp package. The server is registered for the local
+    | stdio transport only and is started with "php artisan mcp:start beacon".
+    | No HTTP endpoint is registered.
+    |
     */
 
     'mcp' => [
@@ -45,7 +49,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | Token used to authenticate MCP clients. MCP access is refused while the
-    | token is missing or shorter than 32 characters. Generate one with:
+    | token is missing or shorter than 32 characters. Clients are not yet
+    | required to present it; that arrives with MCP authentication.
+    | Generate one with:
     |
     |     php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
     |

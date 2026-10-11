@@ -90,3 +90,27 @@ jobs:
 
       - name: Run PHPUnit
         run: composer test
+
+  without-mcp:
+    name: PHPUnit without laravel/mcp
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, json
+          coverage: none
+          tools: composer:v2
+
+      - name: Install Composer dependencies without laravel/mcp
+        run: |
+          composer remove --dev --no-update --no-interaction laravel/mcp
+          composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit --exclude-group mcp
