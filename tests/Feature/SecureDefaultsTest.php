@@ -28,6 +28,16 @@ final class SecureDefaultsTest extends TestCase
     }
 
     #[Test]
+    public function the_http_transport_is_disabled_and_https_only_by_default(): void
+    {
+        $config = $this->application()->make(BeaconConfig::class);
+
+        $this->assertFalse($config->mcpHttpEnabled());
+        $this->assertTrue($config->mcpHttpRequiresHttps());
+        $this->assertSame([], $config->acceptedTokens());
+    }
+
+    #[Test]
     public function production_is_not_an_allowed_mcp_environment_by_default(): void
     {
         $config = $this->configFor('production', ['enabled' => true], self::VALID_TOKEN);

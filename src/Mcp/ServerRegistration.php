@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Beacon\Mcp;
 
 use Beacon\Core\BeaconConfig;
+use Beacon\Mcp\Http\AuthenticateMcpRequest;
 use Beacon\Security\AuthorizationDecision;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Routing\Router;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Registrar;
 
@@ -14,14 +16,18 @@ use Laravel\Mcp\Server\Registrar;
  * Decides whether the Beacon MCP server may exist and registers it with
  * laravel/mcp when it may.
  *
- * Only the local (stdio) transport is registered. No HTTP endpoint is exposed
- * until MCP authentication is implemented.
+ * The local (stdio) transport is registered whenever MCP access is allowed.
+ * The HTTP transport is an additional opt-in and every route it creates,
+ * including the 405 responses for GET and DELETE, sits behind bearer-token
+ * authentication.
  */
 final class ServerRegistration
 {
     public const HANDLE = 'beacon';
 
     private bool $registered = false;
+
+    private bool $httpRegistered = false;
 
     public function __construct(
         private readonly Container $container,
@@ -49,6 +55,21 @@ final class ServerRegistration
         return $access;
     }
 
+    public function decideHttp(): AuthorizationDecision
+    {
+        $decision = $this->decide();
+
+        if (! $decision->allowed) {
+            return $decision;
+        }
+
+        if (! $this->config->mcpHttpEnabled()) {
+            return AuthorizationDecision::deny('The Beacon MCP HTTP transport is disabled. Set BEACON_MCP_HTTP_ENABLED=true to enable it.');
+        }
+
+        return $decision;
+    }
+
     /**
      * Register the server if allowed. Returns whether it is registered.
      */
@@ -62,7 +83,16 @@ final class ServerRegistration
             return false;
         }
 
-        $this->container->make(Registrar::class)->local(self::HANDLE, BeaconServer::class);
+        $registrar = $this->container->make(Registrar::class);
+        $registrar->local(self::HANDLE, BeaconServer::class);
+
+        if ($this->decideHttp()->allowed) {
+            $this->container->make(Router::class)
+                ->middleware(AuthenticateMcpRequest::class)
+                ->group(fn () => $registrar->web($this->config->mcpHttpPath(), BeaconServer::class));
+
+            $this->httpRegistered = true;
+        }
 
         return $this->registered = true;
     }
@@ -70,6 +100,11 @@ final class ServerRegistration
     public function registered(): bool
     {
         return $this->registered;
+    }
+
+    public function httpRegistered(): bool
+    {
+        return $this->httpRegistered;
     }
 
     /**

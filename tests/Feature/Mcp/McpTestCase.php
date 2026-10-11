@@ -28,4 +28,13 @@ abstract class McpTestCase extends TestCase
         $app['config']->set('beacon.mcp.allowed_environments', ['testing']);
         $app['config']->set('beacon.auth.token', self::TOKEN);
     }
+
+    /**
+     * @param \Illuminate\Foundation\Application $app
+     */
+    protected function enableHttp($app): void
+    {
+        $this->enableMcp($app);
+        $app['config']->set('beacon.mcp.http.enabled', true);
+    }
 }

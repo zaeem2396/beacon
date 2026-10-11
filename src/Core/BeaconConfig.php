@@ -16,6 +16,8 @@ final class BeaconConfig
 {
     public const MINIMUM_TOKEN_LENGTH = 32;
 
+    public const DEFAULT_HTTP_PATH = 'beacon/mcp';
+
     public function __construct(
         private readonly Repository $config,
         private readonly string $environment,
@@ -45,11 +47,49 @@ final class BeaconConfig
         return $this->stringList('beacon.mcp.allowed_environments');
     }
 
+    public function mcpHttpEnabled(): bool
+    {
+        return $this->bool('beacon.mcp.http.enabled', false);
+    }
+
+    /**
+     * URI of the HTTP endpoint, without leading or trailing slashes.
+     */
+    public function mcpHttpPath(): string
+    {
+        $path = $this->config->get('beacon.mcp.http.path');
+        $path = is_string($path) ? trim($path, " \t\n\r\0\x0B/") : '';
+
+        return preg_match('#^[A-Za-z0-9._~-]+(/[A-Za-z0-9._~-]+)*$#', $path) === 1 ? $path : self::DEFAULT_HTTP_PATH;
+    }
+
+    public function mcpHttpRequiresHttps(): bool
+    {
+        return $this->bool('beacon.mcp.http.require_https', true);
+    }
+
     public function authToken(): ?string
     {
-        $token = $this->config->get('beacon.auth.token');
+        return $this->string('beacon.auth.token');
+    }
 
-        return is_string($token) && trim($token) !== '' ? trim($token) : null;
+    /**
+     * Tokens an HTTP client may present: the current token and, during
+     * rotation, the previous one. Tokens that are too short are never accepted.
+     *
+     * @return array<string, string> token keyed by a non-secret label
+     */
+    public function acceptedTokens(): array
+    {
+        $tokens = [
+            'current' => $this->authToken(),
+            'previous' => $this->string('beacon.auth.previous_token'),
+        ];
+
+        return array_filter(
+            $tokens,
+            static fn (?string $token): bool => $token !== null && strlen($token) >= self::MINIMUM_TOKEN_LENGTH,
+        );
     }
 
     /**
@@ -132,6 +172,13 @@ final class BeaconConfig
         }
 
         return $result;
+    }
+
+    private function string(string $key): ?string
+    {
+        $value = $this->config->get($key);
+
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 
     private function bool(string $key, bool $default): bool

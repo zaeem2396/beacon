@@ -12,8 +12,12 @@ use Laravel\Mcp\Server\Tool;
 #[Description('Test-only tool that returns a constant string.')]
 final class EchoTool extends Tool
 {
+    public static int $calls = 0;
+
     public function handle(Request $request): Response
     {
+        ++self::$calls;
+
         return Response::text('echo');
     }
 }
