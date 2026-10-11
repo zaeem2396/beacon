@@ -18,7 +18,8 @@ abstract class McpTestCase extends TestCase
     }
 
     /**
-     * Configuration that satisfies every MCP access condition in the testing environment.
+     * Configuration that satisfies every MCP access condition in the testing
+     * environment and allows the "application" capability.
      *
      * @param \Illuminate\Foundation\Application $app
      */
@@ -27,6 +28,7 @@ abstract class McpTestCase extends TestCase
         $app['config']->set('beacon.mcp.enabled', true);
         $app['config']->set('beacon.mcp.allowed_environments', ['testing']);
         $app['config']->set('beacon.auth.token', self::TOKEN);
+        $app['config']->set('beacon.security.allowed_capabilities', ['application']);
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Beacon\Mcp;
 
+use Beacon\Contracts\RequiresCapability;
 use Laravel\Mcp\Server\Prompt;
 use Laravel\Mcp\Server\Resource;
 use Laravel\Mcp\Server\Tool;
@@ -11,8 +12,10 @@ use Laravel\Mcp\Server\Tool;
 /**
  * Tools, resources and prompts exposed by the Beacon MCP server.
  *
- * Nothing is exposed unless it is explicitly registered here. Beacon modules
- * register their primitives from a service provider:
+ * Nothing is exposed unless it is explicitly registered here, and every
+ * primitive must implement {@see RequiresCapability}. Registering a primitive
+ * does not grant its capability. Beacon modules register their primitives
+ * from a service provider:
  *
  *     $this->app->make(McpRegistry::class)->tool(GetRoutesTool::class);
  */
@@ -97,6 +100,10 @@ final class McpRegistry
     {
         if (! is_subclass_of($class, $parent)) {
             throw new \InvalidArgumentException("[{$class}] must extend {$parent}.");
+        }
+
+        if (! is_subclass_of($class, RequiresCapability::class)) {
+            throw new \InvalidArgumentException("[{$class}] must implement " . RequiresCapability::class . ' to declare its capability.');
         }
     }
 }

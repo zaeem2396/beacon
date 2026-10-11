@@ -14,6 +14,7 @@ use Beacon\Mcp\BeaconMcpServiceProvider;
 use Beacon\Security\BearerTokenAuthenticator;
 use Beacon\Security\CapabilityAuthorizer;
 use Beacon\Security\CapabilityPolicy;
+use Beacon\Security\CapabilityRegistry;
 use Beacon\Security\KeyPatternRedactor;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
@@ -35,6 +36,7 @@ final class BeaconServiceProvider extends ServiceProvider
             $app->make(BeaconConfig::class)->additionalRedactedKeys(),
         ));
 
+        $this->app->singleton(CapabilityRegistry::class);
         $this->app->singleton(CapabilityPolicy::class);
         $this->app->singleton(Authorizer::class, CapabilityAuthorizer::class);
         $this->app->singleton(Authenticator::class, BearerTokenAuthenticator::class);

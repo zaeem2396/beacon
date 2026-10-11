@@ -8,6 +8,8 @@ use Beacon\Contracts\Authorizer;
 use Beacon\Core\BeaconConfig;
 use Beacon\Security\AccessMode;
 use Beacon\Security\Capability;
+use Beacon\Security\InspectionCapability;
+use Beacon\Security\Principal;
 use Beacon\Tests\TestCase;
 use Illuminate\Config\Repository;
 use PHPUnit\Framework\Attributes\Test;
@@ -51,12 +53,24 @@ final class SecureDefaultsTest extends TestCase
     #[Test]
     public function mutating_capabilities_are_denied_even_when_explicitly_allowed(): void
     {
-        config()->set('beacon.security.allowed_capabilities', ['*', 'cache']);
+        config()->set('beacon.security.allowed_capabilities', ['*', 'queue']);
 
         $authorizer = $this->application()->make(Authorizer::class);
 
-        $this->assertTrue($authorizer->decide(Capability::read('cache'))->allowed);
-        $this->assertFalse($authorizer->decide(new Capability('cache', AccessMode::Write))->allowed);
+        $this->assertTrue($authorizer->decide(Principal::local(), Capability::read('queue'))->allowed);
+        $this->assertFalse($authorizer->decide(Principal::local(), new Capability('queue', AccessMode::Write))->allowed);
+    }
+
+    #[Test]
+    public function every_capability_is_denied_by_default(): void
+    {
+        $authorizer = $this->application()->make(Authorizer::class);
+
+        $this->assertSame([], $this->application()->make(BeaconConfig::class)->allowedCapabilities());
+
+        foreach (InspectionCapability::cases() as $case) {
+            $this->assertFalse($authorizer->decide(Principal::local(), $case->capability())->allowed, $case->value);
+        }
     }
 
     #[Test]

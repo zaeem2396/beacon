@@ -63,6 +63,13 @@ final class KeyPatternRedactorTest extends TestCase
         yield 'slack token' => ['xoxb-1234567890-abcdef'];
         yield 'stripe key' => ['sk_live_' . str_repeat('a', 24)];
         yield 'api key' => ['sk-' . str_repeat('A', 32)];
+        yield 'app key in message' => ['Decryption failed with base64:2fl+Ktvkfl+Fuz4Qp/A75G2RTiWVA/ZoKZvp6fiiM10= key'];
+        yield 'bearer token in message' => ['Upstream rejected Authorization: Bearer abcdefghijklmnop0123456789'];
+        yield 'password assignment in message' => ['PDO error: host=db;password=hunter22;dbname=app'];
+        yield 'mail password in message' => ['SMTP auth failed: MAIL_PASSWORD="pa55word!"'];
+        yield 'oauth client secret in message' => ['Exchange failed (client_secret=AbCdEf123456)'];
+        yield 'api key assignment' => ['GET /v1/charges?api_key=live_abcdef123456'];
+        yield 'token in json' => ['{"access_token":"ya29.a0AfH6SMBx"}'];
     }
 
     /**
@@ -77,6 +84,10 @@ final class KeyPatternRedactorTest extends TestCase
         yield 'boolean' => [true];
         yield 'null' => [null];
         yield 'empty string' => [''];
+        yield 'mysql access denied' => ["SQLSTATE[HY000] [1045] Access denied for user 'forge'@'localhost' (using password: YES)"];
+        yield 'basic in prose' => ['Basic usage of the queue'];
+        yield 'bearer in prose' => ['Missing bearer token'];
+        yield 'password reset route' => ['password/reset'];
     }
 
     #[Test]
