@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Beacon;
 
+use Beacon\Console\Commands\BeaconCommand;
+use Beacon\Console\Commands\CheckCommand;
+use Beacon\Console\Commands\InstallCommand;
 use Beacon\Contracts\Authenticator;
 use Beacon\Contracts\Authorizer;
 use Beacon\Contracts\Redactor;
@@ -21,6 +24,8 @@ use Illuminate\Support\ServiceProvider;
 
 final class BeaconServiceProvider extends ServiceProvider
 {
+    public const CONFIG_TAG = 'beacon-config';
+
     private const CONFIG_PATH = __DIR__ . '/../config/beacon.php';
 
     public function register(): void
@@ -51,7 +56,13 @@ final class BeaconServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->publishes([
                 self::CONFIG_PATH => $this->app->configPath('beacon.php'),
-            ], ['beacon-config', 'beacon']);
+            ], [self::CONFIG_TAG, 'beacon']);
+
+            $this->commands([
+                BeaconCommand::class,
+                CheckCommand::class,
+                InstallCommand::class,
+            ]);
         }
     }
 }

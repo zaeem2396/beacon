@@ -2,7 +2,7 @@
 
 Laravel Beacon exposes safe, structured production information about a Laravel application to AI agents (Claude, Cursor and other MCP clients) so they can investigate production problems using real application evidence.
 
-> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication and the read-only security model are in place. Inspectors, MCP tools and Artisan commands are not implemented yet. See [ROADMAP.md](ROADMAP.md).
+> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation (`beacon`, `beacon:install`, `beacon:check`) are in place. Inspectors and MCP tools are not implemented yet. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -15,11 +15,149 @@ Laravel Beacon exposes safe, structured production information about a Laravel a
 composer require zaeem2396/beacon
 ```
 
-The service provider is registered automatically through package discovery. To customise the configuration:
+The service provider is registered automatically through package discovery. Then run the installer and the diagnostics:
 
 ```bash
-php artisan vendor:publish --tag=beacon-config
+php artisan beacon:install
+php artisan beacon:check
 ```
+
+See [Artisan commands](#artisan-commands) for details.
+
+## Artisan commands
+
+| Command                      | Purpose                                                                 |
+| ---------------------------- | ----------------------------------------------------------------------- |
+| `php artisan beacon`         | Installed version, whether Beacon and MCP are active, available commands |
+| `php artisan beacon:install` | Publish `config/beacon.php` and explain the remaining manual setup      |
+| `php artisan beacon:check`   | Diagnose the installation and configuration (`--json` for automation)   |
+
+Every command supports `--help`. None of them print tokens or other secret configuration values.
+
+### `beacon:install`
+
+```bash
+php artisan beacon:install
+```
+
+- Publishes `config/beacon.php` (the `beacon-config` publish tag) if it does not exist yet.
+- **Never overwrites an existing file** and is safe to run repeatedly. To replace your configuration deliberately, run `php artisan vendor:publish --tag=beacon-config --force`.
+- **Does not edit `.env`, generate tokens, enable MCP or expose an HTTP endpoint.** It prints the variables you need to set yourself:
+
+```text
+   INFO  Published config/beacon.php.
+
+   INFO  Beacon is installed. MCP stays disabled until you enable it.
+
+  To enable MCP, add the following to your .env file:
+
+    BEACON_MCP_ENABLED=true
+    BEACON_MCP_TOKEN=<random token of at least 32 characters>
+    BEACON_MCP_ENVIRONMENTS=local
+    BEACON_ALLOWED_CAPABILITIES=<capabilities to allow, e.g. application,routes>
+```
+
+### `beacon:check`
+
+```bash
+php artisan beacon:check
+php artisan beacon:check --json
+```
+
+`beacon:check` runs read-only self-diagnostics. It does not connect to the database or any other service, does not change any state, and works in any environment.
+
+| Check id                | What it verifies                                                                         |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| `package`               | Beacon's service provider is registered; reports the installed version                    |
+| `config`                | The `beacon` configuration exists and has valid types and an HTTP path (key names only) |
+| `application`           | Warns when `APP_DEBUG` is on in production                                               |
+| `mcp`                   | Whether MCP is enabled, has a usable token and is allowed in the current environment     |
+| `mcp.sdk`               | `laravel/mcp` is installed and its service provider is registered                        |
+| `mcp.server`            | The `beacon` server is registered with `laravel/mcp` when MCP is available                |
+| `mcp.http`              | The optional HTTP transport: disabled, registered, and whether HTTPS is required          |
+| `auth`                  | A token of sufficient length is configured; reports token rotation; never prints tokens   |
+| `security.read_only`    | Mutating capabilities are denied by the capability policy                                 |
+| `security.capabilities` | The capability allowlist: default deny, `*`, or unregistered names                        |
+| `security.redaction`    | The built-in redaction rules are active                                                   |
+| `inspectors`            | Always `not_implemented` in this version                                                  |
+| `mcp.tools`             | Always `not_implemented` in this version                                                  |
+
+Each check reports one status:
+
+| Status            | Meaning                                                                    | Affects exit code |
+| ----------------- | -------------------------------------------------------------------------- | ----------------- |
+| `pass`            | Works as intended                                                          | no                |
+| `warn`            | Works, but should be reviewed (e.g. plain HTTP, token rotation, `*`)       | no                |
+| `disabled`        | Intentionally off (e.g. MCP disabled by default)                           | no                |
+| `not_implemented` | A feature Beacon does not provide yet                                      | no                |
+| `misconfigured`   | Configuration prevents the feature from working; fix your configuration    | exit code `1`     |
+| `fail`            | Something is broken and is not a configuration problem                     | exit code `2`     |
+
+#### Exit codes
+
+| Code | Meaning                                                                    |
+| ---- | -------------------------------------------------------------------------- |
+| `0`  | Every check passed, or is a warning, disabled or not implemented           |
+| `1`  | At least one check is `misconfigured` (and none failed)                    |
+| `2`  | At least one check failed, or the diagnostics could not run at all         |
+
+For example, to fail a deployment pipeline on configuration problems:
+
+```bash
+php artisan beacon:check --json > beacon-check.json || exit $?
+```
+
+#### JSON output
+
+With `--json`, stdout contains exactly one JSON document and nothing else (no colors, no progress output). The schema is versioned by `schema_version`; fields may be added in later versions of schema 1, but existing fields will not be removed or change meaning.
+
+```json
+{
+    "schema_version": 1,
+    "beacon_version": "v0.1.0",
+    "status": "misconfigured",
+    "exit_code": 1,
+    "summary": {
+        "pass": 7,
+        "warn": 0,
+        "disabled": 2,
+        "not_implemented": 2,
+        "misconfigured": 2,
+        "fail": 0
+    },
+    "checks": [
+        {
+            "id": "auth",
+            "name": "Authentication",
+            "status": "misconfigured",
+            "message": "BEACON_MCP_TOKEN is shorter than 32 characters and is rejected.",
+            "hint": "Generate a token with: php -r \"echo bin2hex(random_bytes(32)), PHP_EOL;\" and set BEACON_MCP_TOKEN."
+        }
+    ]
+}
+```
+
+| Field            | Type            | Description                                                                 |
+| ---------------- | --------------- | --------------------------------------------------------------------------- |
+| `schema_version` | integer         | Version of this schema                                                      |
+| `beacon_version` | string          | Installed Beacon version from Composer metadata, or `unknown`               |
+| `status`         | string          | Overall result: `ok`, `warn`, `misconfigured` or `fail`                     |
+| `exit_code`      | integer         | The process exit code (see above)                                           |
+| `summary`        | object          | Number of checks per status; every status is always present                |
+| `checks`         | array           | One object per check, in a stable order                                     |
+| `checks[].id`    | string          | Stable identifier; use it rather than `name` in automation                  |
+| `checks[].name`  | string          | Human-readable name                                                         |
+| `checks[].status`| string          | One of the check statuses above                                             |
+| `checks[].message` | string        | What was found                                                              |
+| `checks[].hint`  | string or null  | How to fix or improve it                                                    |
+
+The output never contains token values, secret configuration values, environment dumps or exception messages. If a single check throws, it is reported as `fail` with a generic message. If the diagnostics cannot run at all, the command still prints a valid document with `"status": "fail"`, `"exit_code": 2` and an empty `checks` array, and writes the exception class (without its message) to stderr.
+
+### Limitations
+
+- `beacon:check` validates Beacon itself; it does not inspect your application yet. Database, queue, cache and other inspectors are planned (see [ROADMAP.md](ROADMAP.md)) and are reported as `not_implemented` until then.
+- The checks reflect the configuration of the process that runs them. With a cached configuration (`php artisan config:cache`), run `php artisan config:clear` after changing `.env`.
+- There is no dedicated MCP management command; start the server with `php artisan mcp:start beacon` and verify it with `beacon:check`.
 
 ## Security defaults
 
@@ -314,12 +452,14 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | Namespace           | Responsibility                                                                                                                                      |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
-| `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config)                                              |
+| `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config), `Version` (installed version)                |
 | `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, shared DTOs (`SafeValue`, `HealthCheckResult`)                                                                  |
 | `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `BearerTokenAuthenticator`, `Principal` |
 | `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
 | `Beacon\Health`     | `HealthStatus`                                                                                                                                      |
 | `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`. The only namespace that depends on `laravel/mcp`. |
+| `Beacon\Diagnostics` | `Diagnostics` (the `beacon:check` checks), `DiagnosticReport`, `CheckResult`, `DiagnosticStatus`. Uses `laravel/mcp` only when it is installed. |
+| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:install` and `beacon:check`                                                                              |
 
 Inspectors know nothing about MCP. Consumers call `Beacon::inspect()`, which authorizes the inspector's capability, runs it and returns a `Payload`. A `Payload` can only be built from `Data` and is always normalized and redacted, so a secret copied into a DTO by mistake is still removed before output.
 
