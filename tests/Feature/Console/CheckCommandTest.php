@@ -56,12 +56,23 @@ final class CheckCommandTest extends TestCase
     }
 
     #[Test]
-    public function future_features_are_reported_as_not_implemented(): void
+    public function enabled_inspectors_are_reported(): void
     {
         [, $report] = $this->check();
 
-        $this->assertSame('not_implemented', $this->statusOf($report, 'inspectors'));
-        $this->assertSame('not_implemented', $this->statusOf($report, 'mcp.tools'));
+        $this->assertSame('pass', $this->statusOf($report, 'inspectors'));
+        $this->assertSame('Enabled: application.', $this->messageOf($report, 'inspectors'));
+    }
+
+    #[Test]
+    public function disabling_every_inspector_is_reported(): void
+    {
+        config()->set('beacon.inspectors.application.enabled', false);
+
+        [$exitCode, $report] = $this->check();
+
+        $this->assertSame(DiagnosticReport::EXIT_OK, $exitCode);
+        $this->assertSame('disabled', $this->statusOf($report, 'inspectors'));
     }
 
     #[Test]
@@ -283,7 +294,7 @@ final class CheckCommandTest extends TestCase
 
         $this->assertSame(DiagnosticReport::EXIT_MISCONFIGURED, $exitCode);
         $this->assertStringContainsString('MISCONFIGURED', $output);
-        $this->assertStringContainsString('NOT IMPLEMENTED', $output);
+        $this->assertStringContainsString('DISABLED', $output);
         $this->assertStringContainsString('PASS', $output);
         $this->assertStringContainsString('Beacon is misconfigured', $output);
     }
@@ -343,5 +354,13 @@ final class CheckCommandTest extends TestCase
     private function statusOf(array $report, string $id): mixed
     {
         return $this->findCheck($report, $id)['status'];
+    }
+
+    /**
+     * @param array<array-key, mixed> $report
+     */
+    private function messageOf(array $report, string $id): mixed
+    {
+        return $this->findCheck($report, $id)['message'];
     }
 }
