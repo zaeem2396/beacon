@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Beacon\Tests\Feature\Mcp;
 
 use Beacon\Mcp\ExecutionGate;
-use Beacon\Mcp\Tools\GetApplicationInfoTool;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -31,8 +30,10 @@ final class StdioTransportTest extends TestCase
         'clientInfo' => ['name' => 'beacon-tests', 'version' => '1.0.0'],
     ]];
 
+    private const APPLICATION_TOOL = 'beacon.get_application_info';
+
     private const CALL_APPLICATION_TOOL = ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/call', 'params' => [
-        'name' => GetApplicationInfoTool::NAME,
+        'name' => self::APPLICATION_TOOL,
         'arguments' => [],
     ]];
 
@@ -57,7 +58,7 @@ final class StdioTransportTest extends TestCase
 
         $this->assertCount(2, $responses);
         $this->assertSame('Laravel Beacon', data_get($responses[0], 'result.serverInfo.name'));
-        $this->assertSame([GetApplicationInfoTool::NAME], array_column((array) data_get($responses[1], 'result.tools'), 'name'));
+        $this->assertSame([self::APPLICATION_TOOL], array_column((array) data_get($responses[1], 'result.tools'), 'name'));
     }
 
     #[Test]

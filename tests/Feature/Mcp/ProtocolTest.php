@@ -7,7 +7,6 @@ namespace Beacon\Tests\Feature\Mcp;
 use Beacon\Mcp\BeaconServer;
 use Beacon\Mcp\McpRegistry;
 use Beacon\Mcp\McpUnavailableException;
-use Beacon\Mcp\Tools\GetApplicationInfoTool;
 use Beacon\Tests\Fixtures\LeakyInspector;
 use Beacon\Tests\Fixtures\Mcp\EchoTool;
 use Beacon\Tests\Fixtures\Mcp\RecordingTransport;
@@ -18,7 +17,11 @@ use PHPUnit\Framework\Attributes\Test;
 #[Group('mcp')]
 final class ProtocolTest extends McpTestCase
 {
-    private const BUILT_IN_TOOLS = [GetApplicationInfoTool::NAME];
+    /**
+     * Literal names: constant expressions are evaluated while PHPUnit builds
+     * the suite, where tool classes cannot load without laravel/mcp.
+     */
+    private const BUILT_IN_TOOLS = ['beacon.get_application_info'];
 
     #[Test]
     #[DefineEnvironment('enableMcp')]
