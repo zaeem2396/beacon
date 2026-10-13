@@ -63,7 +63,7 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 
 | Module                   | Prompt                                                                                                                                                                                 | Status |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Application information  | Expose Laravel version, PHP version, environment, application name, runtime information and relevant framework metadata through CLI and MCP. Sensitive secrets must never be returned. | 🔴     |
+| Application information  | Expose Laravel version, PHP version, environment, application name, runtime information and relevant framework metadata through CLI and MCP. Sensitive secrets must never be returned. | 🟡     |
 | Environment inspection   | Inspect important Laravel environment/configuration values and identify unsafe or suspicious production configuration without exposing secret values.                                  | 🔴     |
 | Route inspection         | Allow AI clients to inspect registered routes, HTTP methods, middleware and route metadata. Provide structured data suitable for AI reasoning rather than raw framework dumps.         | 🔴     |
 | Configuration inspection | Provide safe access to important Laravel configuration state while masking credentials, secrets and sensitive values.                                                                  | 🔴     |
