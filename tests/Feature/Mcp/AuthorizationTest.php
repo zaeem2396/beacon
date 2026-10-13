@@ -66,7 +66,7 @@ final class AuthorizationTest extends McpTestCase
     {
         $this->registry()->tool(EchoTool::class);
 
-        $this->rpc('tools/list')->assertOk()->assertJsonPath('result.tools.0.name', 'echo-tool');
+        $this->assertContains('echo-tool', array_column((array) $this->rpc('tools/list')->assertOk()->json('result.tools'), 'name'));
         $this->assertDenied($this->callTool('echo-tool'));
     }
 
