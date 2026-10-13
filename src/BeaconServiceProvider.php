@@ -13,6 +13,7 @@ use Beacon\Contracts\Redactor;
 use Beacon\Core\Beacon;
 use Beacon\Core\BeaconConfig;
 use Beacon\Core\InspectorRegistry;
+use Beacon\Inspectors\ApplicationInspector;
 use Beacon\Mcp\BeaconMcpServiceProvider;
 use Beacon\Security\BearerTokenAuthenticator;
 use Beacon\Security\CapabilityAuthorizer;
@@ -47,6 +48,10 @@ final class BeaconServiceProvider extends ServiceProvider
         $this->app->singleton(Authenticator::class, BearerTokenAuthenticator::class);
         $this->app->singleton(InspectorRegistry::class);
         $this->app->singleton(Beacon::class);
+
+        $this->callAfterResolving(InspectorRegistry::class, static function (InspectorRegistry $inspectors): void {
+            $inspectors->register(ApplicationInspector::NAME, ApplicationInspector::class);
+        });
 
         $this->app->register(BeaconMcpServiceProvider::class);
     }
