@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Beacon\Mcp;
 
+use Beacon\Core\Version;
 use Beacon\Security\Principal;
 use Illuminate\Container\Container;
 use Laravel\Mcp\Server;
@@ -15,8 +16,6 @@ use Laravel\Mcp\Transport\JsonRpcResponse;
 final class BeaconServer extends Server
 {
     protected string $name = 'Laravel Beacon';
-
-    protected string $version = '0.1.0-dev';
 
     protected string $instructions = <<<'MARKDOWN'
         Laravel Beacon provides read-only, structured and redacted information about
@@ -36,6 +35,7 @@ final class BeaconServer extends Server
     ) {
         parent::__construct($transport);
 
+        $this->version = Version::current();
         $this->principal = $callers->resolve($transport);
         $this->tools = $registry->tools();
         $this->resources = $registry->resources();
