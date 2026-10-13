@@ -2,7 +2,7 @@
 
 Laravel Beacon exposes safe, structured production information about a Laravel application to AI agents (Claude, Cursor and other MCP clients) so they can investigate production problems using real application evidence.
 
-> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation (`beacon`, `beacon:install`, `beacon:check`) are in place. Inspectors and MCP tools are not implemented yet. See [ROADMAP.md](ROADMAP.md).
+> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation (`beacon`, `beacon:install`, `beacon:check`) are in place. The first inspector and MCP tool, [`beacon.get_application_info`](#beaconget_application_info), are available. Environment, route, configuration and health inspection are next. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -79,8 +79,8 @@ php artisan beacon:check --json
 | `security.read_only`    | Mutating capabilities are denied by the capability policy                                 |
 | `security.capabilities` | The capability allowlist: default deny, `*`, or unregistered names                        |
 | `security.redaction`    | The built-in redaction rules are active                                                   |
-| `inspectors`            | Always `not_implemented` in this version                                                  |
-| `mcp.tools`             | Always `not_implemented` in this version                                                  |
+| `inspectors`            | Which inspectors are enabled; `disabled` when every inspector is turned off               |
+| `mcp.tools`             | How many MCP tools are registered; `disabled` when there are none (no `laravel/mcp`)      |
 
 Each check reports one status:
 
@@ -118,10 +118,10 @@ With `--json`, stdout contains exactly one JSON document and nothing else (no co
     "status": "misconfigured",
     "exit_code": 1,
     "summary": {
-        "pass": 7,
+        "pass": 9,
         "warn": 0,
         "disabled": 2,
-        "not_implemented": 2,
+        "not_implemented": 0,
         "misconfigured": 2,
         "fail": 0
     },
@@ -155,7 +155,7 @@ The output never contains token values, secret configuration values, environment
 
 ### Limitations
 
-- `beacon:check` validates Beacon itself; it does not inspect your application yet. Database, queue, cache and other inspectors are planned (see [ROADMAP.md](ROADMAP.md)) and are reported as `not_implemented` until then.
+- `beacon:check` validates Beacon itself; it does not run inspectors or connect to your database, cache or queue. Use the [MCP tools](#mcp-tools) to inspect the application.
 - The checks reflect the configuration of the process that runs them. With a cached configuration (`php artisan config:cache`), run `php artisan config:clear` after changing `.env`.
 - There is no dedicated MCP management command; start the server with `php artisan mcp:start beacon` and verify it with `beacon:check`.
 
@@ -328,7 +328,7 @@ What an authenticated client may do is decided separately; see [Authorization an
 - **Tokens do not expire.** They stay valid until you rotate them.
 - **No built-in rate limiting.** A 32+ character random token cannot realistically be guessed, but you can add Laravel's `throttle` middleware in front of the endpoint if you need request limits.
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
-- **No tools, resources or prompts.** The server completes the MCP handshake and answers `ping` and the list methods with empty lists. It exposes no application data.
+- **One tool, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info). Further tools follow the [roadmap](ROADMAP.md).
 
 ## Authorization and the read-only model
 
@@ -350,7 +350,7 @@ Every operation that exposes application information requires exactly one capabi
 | `queue`       | Queue and failed-job metadata                                 |
 | `health`      | Application and infrastructure health results                 |
 
-These define permissions for upcoming inspectors. No inspector or tool using them ships yet.
+`application` is used by [`beacon.get_application_info`](#beaconget_application_info). The others define permissions for upcoming inspectors and grant nothing yet.
 
 ### Default deny
 
@@ -439,6 +439,105 @@ Tools must stay thin: they call `Beacon::inspect()` with the injected `Principal
 app(\Beacon\Security\CapabilityRegistry::class)->register(Capability::read('horizon'), 'Horizon supervisor metadata.');
 ```
 
+## MCP tools
+
+Every Beacon tool is read-only, requires exactly one capability, and runs only for an authenticated caller whose capability is allowed (see [Authorization and the read-only model](#authorization-and-the-read-only-model)). Tools return their data both as `structuredContent`, validated by a published output schema, and as a JSON text copy for clients that do not support structured content.
+
+| Tool                          | Capability    | Purpose                                                       |
+| ----------------------------- | ------------- | ------------------------------------------------------------- |
+| `beacon.get_application_info` | `application` | Laravel, PHP and Beacon versions, environment, debug and maintenance mode, URL, timezone and locales |
+
+### `beacon.get_application_info`
+
+Safe metadata about the Laravel application and the PHP runtime serving the MCP connection. AI agents are told to call it first when investigating an application.
+
+|                 |                                                                           |
+| --------------- | ------------------------------------------------------------------------- |
+| Capability      | `application` (`application:read`)                                      |
+| Inspector       | `application` (`Beacon\Inspectors\ApplicationInspector`)                 |
+| Parameters      | None. Any arguments sent by the client are ignored.                       |
+| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`      |
+
+Allow it explicitly:
+
+```dotenv
+BEACON_ALLOWED_CAPABILITIES=application
+```
+
+To remove the tool entirely, disable its inspector. The tool then no longer appears in `tools/list` and cannot be called:
+
+```php
+// config/beacon.php
+'inspectors' => [
+    'application' => ['enabled' => false],
+],
+```
+
+#### Response
+
+```json
+{
+    "schema_version": 1,
+    "name": "Checkout",
+    "environment": "production",
+    "debug": false,
+    "url": "https://shop.example.com",
+    "timezone": "UTC",
+    "locale": "en",
+    "fallback_locale": "en",
+    "maintenance_mode": false,
+    "laravel_version": "13.35.0",
+    "php_version": "8.3.6",
+    "beacon_version": "v0.1.0"
+}
+```
+
+Every field is always present, in this order. `null` means **unknown**: the value is missing, invalid or could not be read. It never means "off" and is never replaced by a default.
+
+| Field              | Type             | Source                                    | `null` when                                                      |
+| ------------------ | ---------------- | ----------------------------------------- | ---------------------------------------------------------------- |
+| `schema_version`   | integer          | Beacon                                    | never                                                            |
+| `name`             | string or null   | `app.name`, trimmed                       | missing, empty, longer than 255 characters, or contains control characters or invalid UTF-8 |
+| `environment`      | string           | `app()->environment()`                    | never                                                            |
+| `debug`            | boolean or null  | `app.debug`                               | not a real boolean (e.g. the string `"false"`, which Laravel would treat as enabled) |
+| `url`              | string or null   | `app.url`, sanitized (see below)          | missing, or not an absolute `http`/`https` URL with a valid host |
+| `timezone`         | string or null   | `app.timezone`, as configured             | missing or not a timezone PHP recognizes                          |
+| `locale`           | string or null   | `app.locale`                              | missing or not a language tag such as `en`, `pt_BR` or `zh-Hant-TW` |
+| `fallback_locale`  | string or null   | `app.fallback_locale`                     | same as `locale`                                                 |
+| `maintenance_mode` | boolean or null  | Laravel's maintenance-mode driver         | the driver cannot be read (e.g. its cache store is unreachable)  |
+| `laravel_version`  | string           | `app()->version()`                        | never                                                            |
+| `php_version`      | string           | `PHP_VERSION` of the serving process      | never                                                            |
+| `beacon_version`   | string or null   | Composer's installed-package metadata     | Beacon's version cannot be determined                            |
+
+The schema is versioned by `schema_version`. Fields may be added within schema 1, but existing fields will not be removed or change meaning.
+
+#### Security
+
+- **URL sanitization.** `url` keeps only the scheme, host, port and path. User information (`user:password@`), query strings and fragments are always removed, since they commonly carry credentials, signatures or tokens. Internationalized host names must be configured in their ASCII (punycode) form.
+- **Never returned:** application keys (`APP_KEY`, `app.previous_keys`), the cipher, database, cache, mail and service credentials, API tokens, session and cookie configuration, environment variables, `.env` contents, other configuration values, filesystem paths, server variables and request headers. The inspector reads only the values listed above. It never reads `.env`, `$_SERVER` or `getenv()`.
+- **Defence in depth.** The response still passes through Beacon's payload redaction and `ResponseSanitizer`, so a secret placed in, for example, `APP_NAME` is replaced with `[REDACTED]`.
+- **Same rules in every environment.** Beacon applies the same authentication, authorization and redaction whether the application reports `local` or `production`. `environment` and `debug` are reported, never trusted.
+- **Version disclosure.** Exact Laravel and PHP versions help an investigator and an attacker alike. Only allow the `application` capability for clients you trust.
+
+#### Errors
+
+| Situation                                                          | Result                                                                    |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Not authenticated (HTTP)                                           | `401` from the endpoint; the tool never runs                              |
+| `application` capability not allowed                               | JSON-RPC error `-32001` "Permission denied."                              |
+| Authorization denied at the tool itself (defence in depth)         | Tool result with `isError: true` and "Permission denied."                 |
+| Inspector disabled                                                 | The tool is not listed; calling it returns "Tool not found"               |
+| Inspection fails unexpectedly                                      | Tool result with `isError: true` and "Application information is currently unavailable." |
+
+Failure messages are fixed strings. Exception messages, classes, stack traces and paths are never returned, even with `APP_DEBUG=true`, and Beacon does not log them.
+
+#### Limitations
+
+- **The runtime is the one serving MCP.** Over stdio, `php_version` is the PHP CLI's version, which can differ from the PHP-FPM version serving web traffic. Over HTTP it is the web server's PHP.
+- **Configuration as loaded.** Values reflect the configuration of the process answering the call. With `php artisan config:cache`, changes appear only after the cache is rebuilt.
+- **Maintenance mode** is read through Laravel's configured driver. With the `cache` driver this is a read from that cache store.
+- **Audit events.** A successful call is authorized twice, by the MCP execution gate and again when the inspector runs, so two `AuthorizationEvaluated` events are dispatched per call.
+
 ## Architecture
 
 Beacon keeps collecting information separate from exposing it:
@@ -453,11 +552,12 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
 | `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config), `Version` (installed version)                |
-| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, shared DTOs (`SafeValue`, `HealthCheckResult`)                                                                  |
-| `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `BearerTokenAuthenticator`, `Principal` |
+| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `SafeValue`, `HealthCheckResult`)                                                      |
+| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`                                                                                                          |
+| `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `UrlSanitizer`, `BearerTokenAuthenticator`, `Principal` |
 | `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
 | `Beacon\Health`     | `HealthStatus`                                                                                                                                      |
-| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`. The only namespace that depends on `laravel/mcp`. |
+| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, `Tools\GetApplicationInfoTool`. The only namespace that depends on `laravel/mcp`. |
 | `Beacon\Diagnostics` | `Diagnostics` (the `beacon:check` checks), `DiagnosticReport`, `CheckResult`, `DiagnosticStatus`. Uses `laravel/mcp` only when it is installed. |
 | `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:install` and `beacon:check`                                                                              |
 
@@ -465,41 +565,51 @@ Inspectors know nothing about MCP. Consumers call `Beacon::inspect()`, which aut
 
 ### Writing an inspector
 
+The built-in pattern, which every Beacon inspector follows, is:
+
+1. An inspector (`Beacon\Inspectors\ApplicationInspector`) reads an explicit list of values through injected services and validates each one, using `null` for anything missing or invalid.
+2. It returns a typed DTO (`Beacon\Data\ApplicationInfo`) that holds only scalars, so nothing else can be serialized.
+3. A thin MCP tool (`Beacon\Mcp\Tools\GetApplicationInfoTool`) declares the capability, calls `Beacon::inspect()` with the caller's `Principal`, and returns the redacted payload as structured content.
+
+Applications and packages can add their own inspectors the same way. Register a read capability for them, since only registered capabilities can be allowed:
+
 ```php
 use Beacon\Contracts\Data;
 use Beacon\Contracts\Inspector;
 use Beacon\Data\DataObject;
 use Beacon\Security\Capability;
-use Beacon\Security\InspectionCapability;
+use Beacon\Security\CapabilityRegistry;
 use Beacon\Security\Principal;
 
-final readonly class ApplicationInfo extends DataObject
+final readonly class ReleaseInfo extends DataObject
 {
     public function __construct(
-        public string $laravelVersion,
-        public string $phpVersion,
+        public ?string $release,
     ) {}
 }
 
-/** @implements Inspector<ApplicationInfo> */
-final class ApplicationInspector implements Inspector
+/** @implements Inspector<ReleaseInfo> */
+final class ReleaseInspector implements Inspector
 {
     public function capability(): Capability
     {
-        return InspectionCapability::Application->capability();
+        return Capability::read('release');
     }
 
     public function inspect(array $parameters = []): Data
     {
-        return new ApplicationInfo(app()->version(), PHP_VERSION);
+        $release = config('app.release');
+
+        return new ReleaseInfo(is_string($release) ? $release : null);
     }
 }
 
-app(\Beacon\Core\InspectorRegistry::class)->register('application', ApplicationInspector::class);
+app(CapabilityRegistry::class)->register(Capability::read('release'), 'The deployed release identifier.');
+app(\Beacon\Core\InspectorRegistry::class)->register('release', ReleaseInspector::class);
 
-// Requires BEACON_ALLOWED_CAPABILITIES to include "application".
-app(\Beacon\Core\Beacon::class)->inspect(Principal::local(), 'application')->toArray();
-// ['laravel_version' => '13.x', 'php_version' => '8.3.x']
+// Requires BEACON_ALLOWED_CAPABILITIES to include "release".
+app(\Beacon\Core\Beacon::class)->inspect(Principal::local(), 'release')->toArray();
+// ['release' => '2026.10.13-1']
 ```
 
 ## Development
