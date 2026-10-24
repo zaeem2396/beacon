@@ -44,6 +44,7 @@ final class EnvironmentInspectorTest extends TestCase
         config()->set('app.timezone', 'asia/kolkata');
         config()->set('app.locale', 'pt_BR');
         config()->set('app.url', 'https://deploy:url-password-not-in-output@shop.example.com/store?token=abc#frag');
+        config()->set('app.key', 'application-key-not-in-output');
 
         $inspection = $this->inspect();
 
@@ -63,7 +64,7 @@ final class EnvironmentInspectorTest extends TestCase
 
         $json = (string) json_encode($inspection->toArray(), JSON_UNESCAPED_SLASHES);
 
-        foreach (['Checkout', 'url-password-not-in-output', 'shop.example.com', 'token=abc', 'laravel_version', 'php_version', 'beacon_version', 'maintenance_mode'] as $absent) {
+        foreach (['Checkout', 'url-password-not-in-output', 'application-key-not-in-output', 'shop.example.com', 'token=abc', 'laravel_version', 'php_version', 'beacon_version', 'maintenance_mode'] as $absent) {
             $this->assertStringNotContainsString($absent, $json);
         }
     }
