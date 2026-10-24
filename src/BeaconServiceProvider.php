@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Beacon;
 
+use Beacon\Console\Commands\ApplicationCommand;
 use Beacon\Console\Commands\BeaconCommand;
 use Beacon\Console\Commands\CheckCommand;
 use Beacon\Console\Commands\InstallCommand;
@@ -65,6 +66,7 @@ final class BeaconServiceProvider extends ServiceProvider
 
             $this->commands([
                 BeaconCommand::class,
+                ApplicationCommand::class,
                 CheckCommand::class,
                 InstallCommand::class,
             ]);
