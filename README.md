@@ -2,7 +2,7 @@
 
 Laravel Beacon exposes safe, structured production information about a Laravel application to AI agents (Claude, Cursor and other MCP clients) so they can investigate production problems using real application evidence.
 
-> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation are in place. Application information is available through [`beacon:application`](#beaconapplication) and [`beacon.get_application_info`](#beaconget_application_info). Environment inspection is available through [`beacon.get_environment`](#beaconget_environment). Route, configuration and health inspection are next. See [ROADMAP.md](ROADMAP.md).
+> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation are in place. Application information is available through [`beacon:application`](#beaconapplication) and [`beacon.get_application_info`](#beaconget_application_info). Environment inspection is available through [`beacon.get_environment`](#beaconget_environment). Route inspection is available through [`beacon.get_routes`](#beaconget_routes). Configuration and health inspection are next. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -357,7 +357,7 @@ What an authenticated client may do is decided separately; see [Authorization an
 - **Tokens do not expire.** They stay valid until you rotate them.
 - **No built-in rate limiting.** A 32+ character random token cannot realistically be guessed, but you can add Laravel's `throttle` middleware in front of the endpoint if you need request limits.
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
-- **Two tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info) and [`beacon.get_environment`](#beaconget_environment). Further tools follow the [roadmap](ROADMAP.md).
+- **Three tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment) and [`beacon.get_routes`](#beaconget_routes). Further tools follow the [roadmap](ROADMAP.md).
 
 ## Authorization and the read-only model
 
@@ -379,7 +379,7 @@ Every operation that exposes application information requires exactly one capabi
 | `queue`       | Queue and failed-job metadata                                 |
 | `health`      | Application and infrastructure health results                 |
 
-`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). The others define permissions for upcoming inspectors and grant nothing yet.
+`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). The others define permissions for upcoming inspectors and grant nothing yet.
 
 ### Default deny
 
@@ -476,6 +476,7 @@ Every Beacon tool is read-only, requires exactly one capability, and runs only f
 | ----------------------------- | ------------- | ------------------------------------------------------------- |
 | `beacon.get_application_info` | `application` | Laravel, PHP and Beacon versions, environment, debug and maintenance mode, URL, timezone and locales |
 | `beacon.get_environment`      | `environment` | Allowlisted environment settings and deterministic configuration findings                            |
+| `beacon.get_routes`           | `routes`      | Registered routes, literal filters, pagination, and deterministic route findings                      |
 
 ### `beacon.get_application_info`
 
@@ -708,6 +709,114 @@ Failure messages are fixed strings. Exception messages, classes, stack traces an
 - **No arbitrary configuration.** Database, mail, queue and service credentials are out of scope. They belong to later inspections.
 - **Audit events.** A successful call is authorized twice, by the MCP execution gate and again when the inspector runs, so two `AuthorizationEvaluated` events are dispatched per call.
 
+### `beacon.get_routes`
+
+Registered routes, literal filters, and a fixed set of deterministic checks. Findings cover the whole route table, not only the page that is returned.
+
+|                 |                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Capability      | `routes` (`routes:read`)                                                                |
+| Inspector       | `routes` (`Beacon\Inspectors\RouteInspector`)                                           |
+| Analyzer        | `Beacon\Inspectors\Routes\RouteAnalyzer`                                                |
+| Parameters      | Optional `method`, `uri`, `uri_match`, `name`, `name_match`, `middleware`, `page`, `limit` |
+| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`. laravel/mcp 1.1+ also copies the tool title into `annotations`. |
+
+There is no Artisan command for this inspection. Allow it explicitly:
+
+```dotenv
+BEACON_ALLOWED_CAPABILITIES=routes
+```
+
+Disable the inspector to remove the tool from `tools/list`:
+
+```php
+'inspectors' => [
+    'routes' => ['enabled' => false],
+],
+```
+
+#### Filters and pagination
+
+Every filter is optional. Omitted filters match every route. `page` defaults to 1 and must be an integer from 1 to 10000. `limit` defaults to 50 and must be an integer from 1 to 100. A larger limit is an error, not a silent clamp. A page past the end returns no routes and the real total.
+
+| Filter        | Match                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------------- |
+| `method`      | One of `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`. Case-insensitive.          |
+| `uri`         | Literal URI. `uri_match` is `contains` (default) or `exact`. A single leading slash is ignored, so `/users` and `users` match the same Laravel URI. |
+| `name`        | Literal route name. `name_match` is `contains` (default) or `exact`.                          |
+| `middleware`  | Exact match against one normalized middleware string, such as `auth` or `throttle:60,1`.      |
+
+There is no regular-expression, SQL, or expression mode. Unknown keys, empty strings, non-scalars, and values outside the length and character limits are rejected. The error names the rule and does not repeat the rejected value. Routes are ordered by URI, methods, name, domain, action, then registration index, so a page is stable.
+
+`pagination.total` is the number of routes that matched, before the page was sliced. It is reliable because the filtered list is in memory. Findings are computed on the full table before that slice.
+
+#### Response
+
+```json
+{
+    "schema_version": 1,
+    "pagination": {"page": 1, "per_page": 50, "total": 1, "pages": 1, "count": 1},
+    "routes": [
+        {
+            "methods": ["GET", "HEAD"],
+            "uri": "users/{user}",
+            "name": "users.show",
+            "domain": null,
+            "middleware": ["auth", "throttle:60,1"],
+            "action": "App\\Http\\Controllers\\UserController@show",
+            "framework_generated": null
+        }
+    ],
+    "findings": []
+}
+```
+
+`null` means missing or withheld, not a guessed value. `framework_generated` is always `null`: route metadata does not reliably say whether the framework registered the route. A closure action is the string `closure`. Middleware closures use that same string. Unsafe middleware parameters are dropped and the middleware name is kept when the name itself is safe. Domains, URIs, names, and actions that fail the safety pattern are withheld rather than escaped.
+
+#### Findings
+
+| Check id                              | What it reports                                                                                                      |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `duplicate_route_names`               | A disclosed route name registered more than once. A registration fact, not a vulnerability. Unnamed routes are not compared. |
+| `sensitive_route_paths`               | A heuristic match on a whole URI segment, case-insensitively. It does not mean the route is vulnerable, reachable, or unauthenticated. `storage-report` does not match `storage`. |
+| `authentication_middleware_excluded`  | A recognised authentication middleware name is explicitly excluded. An unfamiliar alias is not treated as missing authentication. |
+
+Recognised authentication names are `auth`, `auth.basic`, `auth.session`, and the framework classes `Authenticate`, `AuthenticateWithBasicAuth`, and `AuthenticateSession`. `auth:sanctum` counts because the name before the colon is `auth`. Empty middleware is a pass. If an excluded entry cannot be read and no recognised exclusion was confirmed, the status is `unknown`.
+
+The sensitive segments are `.env`, `.git`, `.htaccess`, `.htpasswd`, `.svn`, `_ignition`, `adminer`, `debugbar`, `horizon`, `ignition`, `log-viewer`, `phpinfo`, `phpmyadmin`, `pulse`, `storage`, `telescope`, and `vendor`.
+
+`pass` and `unknown` use severity `none`. `risk` is a potential issue with evidence. These checks do not use `fail`.
+
+#### Errors
+
+| Situation                                                          | What the client receives                                                          |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| Missing or wrong bearer token                                      | HTTP 401, before the tool runs                                                    |
+| Caller lacks `routes`                                              | JSON-RPC error `-32001`, "Permission denied."                                     |
+| Authorization denied at the tool itself                            | Tool result with `isError: true` and "Permission denied."                         |
+| Invalid filter                                                     | Tool result with `isError: true` and a fixed message that does not echo the input |
+| Inspector disabled                                                 | The tool is not listed; calling it returns "Tool not found"                       |
+| Inspection fails unexpectedly                                      | Tool result with `isError: true` and "Route inspection is currently unavailable." |
+
+Failure messages for unexpected errors are fixed strings. Exception messages, classes, stack traces, and paths are not returned, even with `APP_DEBUG=true`, and Beacon does not log them.
+
+#### Security exclusions
+
+- Route inspection is read-only. Handlers are not called and synthetic requests are not dispatched.
+- Controllers are not constructed, and controller middleware (`HasMiddleware` or a controller `middleware()` method) is not resolved. Only middleware already stored on the route is reported.
+- Filters cannot be regular expressions, SQL, or executable expressions.
+- The response is bounded by the page size. There is no route-list cache, so a changed route table is visible on the next call.
+- Filesystem paths and source contents are not returned.
+
+#### Limitations
+
+- **`framework_generated` cannot be decided.** Laravel does not mark framework routes separately from a user closure, redirect, or view route.
+- **Controller middleware is invisible.** Middleware added by the controller is not part of this report.
+- **The serving process.** Over stdio, the route table is the CLI process. A cached route list belongs to that process and can differ from PHP-FPM until the cache is rebuilt.
+- **Heuristic paths are not vulnerabilities.** A matching segment is only a hint that the URI looks operational.
+- **Excluded authentication middleware is not proof of access.** The check reports an explicit exclusion. It does not prove the route is reachable without authentication.
+- **Audit events.** A successful call is authorized twice, by the MCP execution gate and again when the inspector runs, so two `AuthorizationEvaluated` events are dispatched per call.
+
 ## Architecture
 
 Beacon keeps collecting information separate from exposing it:
@@ -722,12 +831,12 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
 | `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config), `Version` (installed version)                |
-| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `Finding`, `SafeValue`, `HealthCheckResult`)                    |
-| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, and `Environment\EnvironmentAnalyzer` with its checks                              |
+| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
+| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, and the environment and route analyzers with their checks         |
 | `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `UrlSanitizer`, `BearerTokenAuthenticator`, `Principal` |
 | `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
 | `Beacon\Health`     | `HealthStatus`                                                                                                                                      |
-| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, `Tools\GetApplicationInfoTool`, `Tools\GetEnvironmentTool`. The only namespace that depends on `laravel/mcp`. |
+| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, `Tools\GetApplicationInfoTool`, `Tools\GetEnvironmentTool`, `Tools\GetRoutesTool`. The only namespace that depends on `laravel/mcp`. |
 | `Beacon\Diagnostics` | `Diagnostics` (the `beacon:check` checks), `DiagnosticReport`, `CheckResult`, `DiagnosticStatus`. Uses `laravel/mcp` only when it is installed. |
 | `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:install` and `beacon:check`                                                         |
 
@@ -741,7 +850,7 @@ The built-in pattern, which every Beacon inspector follows, is:
 2. It returns a typed DTO (`Beacon\Data\ApplicationInfo`) that holds only scalars, so nothing else can be serialized.
 3. A thin MCP tool (`Beacon\Mcp\Tools\GetApplicationInfoTool`) declares the capability, calls `Beacon::inspect()` with the caller's `Principal`, and returns the redacted payload as structured content.
 
-Environment inspection adds a step between 1 and 3: `EnvironmentInspector` collects `EnvironmentFacts`, and `EnvironmentAnalyzer` turns those facts into findings. Checks never read Laravel themselves. The tool still only calls `Beacon::inspect()`.
+Environment inspection adds a step between 1 and 3: `EnvironmentInspector` collects `EnvironmentFacts`, and `EnvironmentAnalyzer` turns those facts into findings. Route inspection does the same with a `RouteCatalog` and `RouteAnalyzer`, after validating literal filters. Checks never read Laravel themselves. The tool still only calls `Beacon::inspect()`.
 
 Applications and packages can add their own inspectors the same way. Register a read capability for them, since only registered capabilities can be allowed:
 
