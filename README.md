@@ -2,7 +2,7 @@
 
 Laravel Beacon exposes safe, structured production information about a Laravel application to AI agents (Claude, Cursor and other MCP clients) so they can investigate production problems using real application evidence.
 
-> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation are in place. Application information is available through [`beacon:application`](#beaconapplication) and [`beacon.get_application_info`](#beaconget_application_info). Environment, route, configuration and health inspection are next. See [ROADMAP.md](ROADMAP.md).
+> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation are in place. Application information is available through [`beacon:application`](#beaconapplication) and [`beacon.get_application_info`](#beaconget_application_info). Environment inspection is available through [`beacon.get_environment`](#beaconget_environment). Route, configuration and health inspection are next. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -357,7 +357,7 @@ What an authenticated client may do is decided separately; see [Authorization an
 - **Tokens do not expire.** They stay valid until you rotate them.
 - **No built-in rate limiting.** A 32+ character random token cannot realistically be guessed, but you can add Laravel's `throttle` middleware in front of the endpoint if you need request limits.
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
-- **One tool, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info). Further tools follow the [roadmap](ROADMAP.md).
+- **Two tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info) and [`beacon.get_environment`](#beaconget_environment). Further tools follow the [roadmap](ROADMAP.md).
 
 ## Authorization and the read-only model
 
@@ -370,7 +370,7 @@ Every operation that exposes application information requires exactly one capabi
 | Capability    | Covers                                                        |
 | ------------- | ------------------------------------------------------------- |
 | `application` | Application metadata: name, environment, debug, sanitized URL, timezone, locales, maintenance mode, and Laravel, PHP and Beacon versions |
-| `environment` | Environment metadata and unsafe-configuration findings        |
+| `environment` | Environment metadata and deterministic configuration findings, without secret values |
 | `routes`      | Routes, HTTP methods, middleware and route metadata           |
 | `config`      | Selected configuration values, with secrets masked            |
 | `database`    | Database status and schema metadata, without credentials      |
@@ -379,7 +379,7 @@ Every operation that exposes application information requires exactly one capabi
 | `queue`       | Queue and failed-job metadata                                 |
 | `health`      | Application and infrastructure health results                 |
 
-`application` is used by [`beacon.get_application_info`](#beaconget_application_info). The others define permissions for upcoming inspectors and grant nothing yet.
+`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). The others define permissions for upcoming inspectors and grant nothing yet.
 
 ### Default deny
 
@@ -475,6 +475,7 @@ Every Beacon tool is read-only, requires exactly one capability, and runs only f
 | Tool                          | Capability    | Purpose                                                       |
 | ----------------------------- | ------------- | ------------------------------------------------------------- |
 | `beacon.get_application_info` | `application` | Laravel, PHP and Beacon versions, environment, debug and maintenance mode, URL, timezone and locales |
+| `beacon.get_environment`      | `environment` | Allowlisted environment settings and deterministic configuration findings                            |
 
 ### `beacon.get_application_info`
 
@@ -569,6 +570,144 @@ Failure messages are fixed strings. Exception messages, classes, stack traces an
 - **Maintenance mode** is read through Laravel's configured driver. With the `cache` driver this is a read from that cache store.
 - **Audit events.** A successful call is authorized twice, by the MCP execution gate and again when the inspector runs, so two `AuthorizationEvaluated` events are dispatched per call.
 
+### `beacon.get_environment`
+
+Safe environment metadata and a fixed set of deterministic configuration checks. It does not identify the application and it does not accept configuration keys from the client.
+
+|                 |                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Capability      | `environment` (`environment:read`)                                                      |
+| Inspector       | `environment` (`Beacon\Inspectors\EnvironmentInspector`)                                |
+| Analyzer        | `Beacon\Inspectors\Environment\EnvironmentAnalyzer`                                     |
+| Parameters      | None. Any arguments sent by the client are ignored.                                      |
+| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`. laravel/mcp 1.1+ also copies the tool title into `annotations`. |
+
+Allow it explicitly:
+
+```dotenv
+BEACON_ALLOWED_CAPABILITIES=environment
+```
+
+Disable the inspector to remove the tool from `tools/list`:
+
+```php
+'inspectors' => [
+    'environment' => ['enabled' => false],
+],
+```
+
+#### Response
+
+```json
+{
+    "schema_version": 1,
+    "metadata": {
+        "environment": "production",
+        "debug": false,
+        "timezone": "UTC",
+        "locale": "en",
+        "configuration_cached": true,
+        "routes_cached": false,
+        "settings": [
+            {"name": "app.debug", "state": "present", "value": false},
+            {"name": "app.key", "state": "sensitive", "value": null},
+            {"name": "app.url", "state": "present", "value": "https"}
+        ]
+    },
+    "findings": [
+        {
+            "id": "debug_enabled_in_production",
+            "status": "pass",
+            "severity": "none",
+            "title": "Debug mode in production",
+            "description": "Debug mode is disabled in production.",
+            "evidence": [
+                {"name": "environment", "observation": "production"},
+                {"name": "app.debug", "observation": "disabled"}
+            ],
+            "remediation": null
+        }
+    ]
+}
+```
+
+`schema_version` is 1. Fields may be added within that version, but existing fields are not removed or redefined. `null` is always present when a value is unknown. It is not omitted and it does not mean "off".
+
+| Metadata field          | Type            | Meaning                                                                 |
+| ----------------------- | --------------- | ----------------------------------------------------------------------- |
+| `environment`           | string          | Laravel's environment name. Production checks use the exact name `production`. |
+| `debug`                 | boolean or null | `app.debug` when it is a real boolean. Null when missing or any other type. |
+| `timezone`              | string or null  | `app.timezone` as configured, when PHP recognizes it.                  |
+| `locale`                | string or null  | `app.locale` when it is a language tag such as `en` or `pt_BR`.        |
+| `configuration_cached`  | boolean or null | Whether this process loaded cached configuration. Null if that cannot be determined. |
+| `routes_cached`         | boolean or null | Whether this process loaded cached routes. Null if that cannot be determined. |
+| `settings`              | list            | The allowlist below, in this order.                                     |
+
+Allowlisted settings: `app.debug`, `app.timezone`, `app.locale`, `app.url`, `app.key`, `session.secure`, `session.http_only`, `session.same_site`.
+
+| Setting state | Meaning                                                                 |
+| ------------- | ----------------------------------------------------------------------- |
+| `present`     | A safe boolean or short classification is in `value`.                  |
+| `missing`     | The effective configuration has no value. `value` is null.             |
+| `invalid`     | A value is present but cannot be used. The raw value is not returned.  |
+| `sensitive`   | A value exists and is withheld. `value` is null. Used for `app.key`.   |
+
+`app.url`'s present value is only `http` or `https`. Host, user info, query and fragment are dropped. Unsafe configuration is not a setting state. It is a finding.
+
+#### Findings
+
+| Field          | Values                                                                 |
+| -------------- | ---------------------------------------------------------------------- |
+| `id`           | Stable check identifier.                                               |
+| `status`       | `pass`, `fail`, `risk`, or `unknown`.                                  |
+| `severity`     | `none`, `low`, `medium`, or `high`. `pass` and `unknown` are `none`.   |
+| `title`        | Short stable title.                                                    |
+| `description`  | What was concluded.                                                    |
+| `evidence`     | `{name, observation}` pairs. Observations are classifications, not raw values. |
+| `remediation`  | Fixed guidance when the status is not `pass`. Null on `pass`.         |
+
+`fail` is a confirmed misconfiguration. `risk` is a potential problem supported by evidence, not a confirmed misconfiguration. `unknown` means the check could not be evaluated. Beacon does not call a model and does not describe a setting as vulnerable.
+
+| Check id                              | What it decides                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------- |
+| `debug_enabled_in_production`         | `fail` / high when debug is enabled in production. `unknown` when `app.debug` is missing or not a boolean. |
+| `app_key_configured`                  | `fail` / high when no application key is configured, in every environment. The key is never returned. |
+| `app_url_scheme_in_production`        | `fail` / medium when the configured URL scheme is `http` in production. `unknown` when the URL is missing or not absolute http(s). |
+| `session_secure_cookie_in_production` | `fail` / high when the Secure flag is explicitly false in production. `risk` / medium when it is unset, because Laravel will not mark the cookie Secure. |
+| `session_http_only_in_production`     | `fail` / high when the HTTP-only flag is explicitly false in production. `unknown` when it is missing or not a boolean. The framework default is not assumed. |
+| `session_same_site_in_production`     | `pass` for `lax` or `strict`. `risk` / low for `none`, because a cross-site flow may require it. `unknown` when missing or not one of those three values. |
+
+Checks other than `app_key_configured` pass when the environment is not exactly `production`. Their evidence still records the setting observation, including `missing` or `invalid`.
+
+#### Security
+
+- The inspector reads Laravel's effective configuration through the config repository and framework APIs. It does not open `.env`, read `getenv()`, or read `$_SERVER`.
+- Never returned: `.env` contents, application keys, previous keys, database passwords and connection strings, API tokens, mail and cloud credentials, OAuth secrets, session secrets, private keys, arbitrary environment variables, filesystem paths, and configuration outside the allowlist.
+- A client cannot ask for a configuration key. Arguments are ignored.
+- Allowlisting is the primary control. Payload redaction and `ResponseSanitizer` still run, so a secret copied into a field by mistake is replaced with `[REDACTED]`.
+- Finding text is fixed. Evidence observations come from a closed list, so a secret stored in an invalid setting is not copied into the finding.
+
+#### Errors
+
+| Situation                                                     | Result                                                                 |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Not authenticated (HTTP)                                      | `401` from the endpoint; the tool never runs                           |
+| `environment` capability not allowed                          | JSON-RPC error `-32001` "Permission denied."                           |
+| Authorization denied at the tool itself (defence in depth)    | Tool result with `isError: true` and "Permission denied."              |
+| Inspector disabled                                            | The tool is not listed; calling it returns "Tool not found"            |
+| Inspection fails unexpectedly                                 | Tool result with `isError: true` and "Environment inspection is currently unavailable." |
+
+Failure messages are fixed strings. Exception messages, classes, stack traces and paths are not returned, even with `APP_DEBUG=true`, and Beacon does not log them.
+
+#### Limitations
+
+- **Exact production name.** Only the environment name `production` triggers production checks. `prod` and `Production` do not.
+- **No local debug warning.** Debug mode enabled outside production is a pass. The evidence still says whether debug is enabled.
+- **Cache status is not a risk.** `configuration_cached` and `routes_cached` describe this process. An uncached configuration is not reported as a finding.
+- **The serving process.** Over stdio, cache and PHP settings are the CLI process, which can differ from PHP-FPM.
+- **No arbitrary configuration.** Database, mail, queue and service credentials are out of scope. They belong to later inspections.
+- **Audit events.** A successful call is authorized twice, by the MCP execution gate and again when the inspector runs, so two `AuthorizationEvaluated` events are dispatched per call.
+
 ## Architecture
 
 Beacon keeps collecting information separate from exposing it:
@@ -583,12 +722,12 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
 | `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config), `Version` (installed version)                |
-| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `SafeValue`, `HealthCheckResult`)                                                      |
-| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`                                                                                                          |
+| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `Finding`, `SafeValue`, `HealthCheckResult`)                    |
+| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, and `Environment\EnvironmentAnalyzer` with its checks                              |
 | `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `UrlSanitizer`, `BearerTokenAuthenticator`, `Principal` |
 | `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
 | `Beacon\Health`     | `HealthStatus`                                                                                                                                      |
-| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, `Tools\GetApplicationInfoTool`. The only namespace that depends on `laravel/mcp`. |
+| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, `Tools\GetApplicationInfoTool`, `Tools\GetEnvironmentTool`. The only namespace that depends on `laravel/mcp`. |
 | `Beacon\Diagnostics` | `Diagnostics` (the `beacon:check` checks), `DiagnosticReport`, `CheckResult`, `DiagnosticStatus`. Uses `laravel/mcp` only when it is installed. |
 | `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:install` and `beacon:check`                                                         |
 
@@ -601,6 +740,8 @@ The built-in pattern, which every Beacon inspector follows, is:
 1. An inspector (`Beacon\Inspectors\ApplicationInspector`) reads an explicit list of values through injected services and validates each one, using `null` for anything missing or invalid.
 2. It returns a typed DTO (`Beacon\Data\ApplicationInfo`) that holds only scalars, so nothing else can be serialized.
 3. A thin MCP tool (`Beacon\Mcp\Tools\GetApplicationInfoTool`) declares the capability, calls `Beacon::inspect()` with the caller's `Principal`, and returns the redacted payload as structured content.
+
+Environment inspection adds a step between 1 and 3: `EnvironmentInspector` collects `EnvironmentFacts`, and `EnvironmentAnalyzer` turns those facts into findings. Checks never read Laravel themselves. The tool still only calls `Beacon::inspect()`.
 
 Applications and packages can add their own inspectors the same way. Register a read capability for them, since only registered capabilities can be allowed:
 

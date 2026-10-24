@@ -15,6 +15,7 @@ use Beacon\Core\Beacon;
 use Beacon\Core\BeaconConfig;
 use Beacon\Core\InspectorRegistry;
 use Beacon\Inspectors\ApplicationInspector;
+use Beacon\Inspectors\EnvironmentInspector;
 use Beacon\Mcp\BeaconMcpServiceProvider;
 use Beacon\Security\BearerTokenAuthenticator;
 use Beacon\Security\CapabilityAuthorizer;
@@ -52,6 +53,7 @@ final class BeaconServiceProvider extends ServiceProvider
 
         $this->callAfterResolving(InspectorRegistry::class, static function (InspectorRegistry $inspectors): void {
             $inspectors->register(ApplicationInspector::NAME, ApplicationInspector::class);
+            $inspectors->register(EnvironmentInspector::NAME, EnvironmentInspector::class);
         });
 
         $this->app->register(BeaconMcpServiceProvider::class);
