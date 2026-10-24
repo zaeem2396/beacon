@@ -2,7 +2,7 @@
 
 Laravel Beacon exposes safe, structured production information about a Laravel application to AI agents (Claude, Cursor and other MCP clients) so they can investigate production problems using real application evidence.
 
-> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation are in place. Application information is available through [`beacon:application`](#beaconapplication) and [`beacon.get_application_info`](#beaconget_application_info). Environment inspection is available through [`beacon.get_environment`](#beaconget_environment). Route inspection is available through [`beacon.get_routes`](#beaconget_routes). Configuration and health inspection are next. See [ROADMAP.md](ROADMAP.md).
+> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation are in place. Application information is available through [`beacon:application`](#beaconapplication) and [`beacon.get_application_info`](#beaconget_application_info). Environment inspection is available through [`beacon.get_environment`](#beaconget_environment). Route inspection is available through [`beacon.get_routes`](#beaconget_routes). Configuration inspection is available through [`beacon.get_config`](#beaconget_config). Health inspection is next. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -357,7 +357,7 @@ What an authenticated client may do is decided separately; see [Authorization an
 - **Tokens do not expire.** They stay valid until you rotate them.
 - **No built-in rate limiting.** A 32+ character random token cannot realistically be guessed, but you can add Laravel's `throttle` middleware in front of the endpoint if you need request limits.
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
-- **Three tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment) and [`beacon.get_routes`](#beaconget_routes). Further tools follow the [roadmap](ROADMAP.md).
+- **Four tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment), [`beacon.get_routes`](#beaconget_routes) and [`beacon.get_config`](#beaconget_config). Further tools follow the [roadmap](ROADMAP.md).
 
 ## Authorization and the read-only model
 
@@ -372,14 +372,14 @@ Every operation that exposes application information requires exactly one capabi
 | `application` | Application metadata: name, environment, debug, sanitized URL, timezone, locales, maintenance mode, and Laravel, PHP and Beacon versions |
 | `environment` | Environment metadata and deterministic configuration findings, without secret values |
 | `routes`      | Routes, HTTP methods, middleware and route metadata           |
-| `config`      | Selected configuration values, with secrets masked            |
+| `config`      | Approved configuration metadata, without credentials or secrets |
 | `database`    | Database status and schema metadata, without credentials      |
 | `migrations`  | Migration status, history and risk analysis                   |
 | `exceptions`  | Recent exceptions in sanitized form                           |
 | `queue`       | Queue and failed-job metadata                                 |
 | `health`      | Application and infrastructure health results                 |
 
-`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). The others define permissions for upcoming inspectors and grant nothing yet.
+`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). The others define permissions for upcoming inspectors and grant nothing yet.
 
 ### Default deny
 
@@ -477,6 +477,7 @@ Every Beacon tool is read-only, requires exactly one capability, and runs only f
 | `beacon.get_application_info` | `application` | Laravel, PHP and Beacon versions, environment, debug and maintenance mode, URL, timezone and locales |
 | `beacon.get_environment`      | `environment` | Allowlisted environment settings and deterministic configuration findings                            |
 | `beacon.get_routes`           | `routes`      | Registered routes, literal filters, pagination, and deterministic route findings                      |
+| `beacon.get_config`           | `config`      | Approved configuration metadata, literal filters, pagination, and deterministic configuration findings |
 
 ### `beacon.get_application_info`
 
@@ -706,7 +707,7 @@ Failure messages are fixed strings. Exception messages, classes, stack traces an
 - **No local debug warning.** Debug mode enabled outside production is a pass. The evidence still says whether debug is enabled.
 - **Cache status is not a risk.** `configuration_cached` and `routes_cached` describe this process. An uncached configuration is not reported as a finding.
 - **The serving process.** Over stdio, cache and PHP settings are the CLI process, which can differ from PHP-FPM.
-- **No arbitrary configuration.** Database, mail, queue and service credentials are out of scope. They belong to later inspections.
+- **No arbitrary configuration.** Database, mail, queue and service credentials stay out of this inspection. Approved non-secret configuration metadata is [`beacon.get_config`](#beaconget_config).
 - **Audit events.** A successful call is authorized twice, by the MCP execution gate and again when the inspector runs, so two `AuthorizationEvaluated` events are dispatched per call.
 
 ### `beacon.get_routes`
@@ -817,6 +818,145 @@ Failure messages for unexpected errors are fixed strings. Exception messages, cl
 - **Excluded authentication middleware is not proof of access.** The check reports an explicit exclusion. It does not prove the route is reachable without authentication.
 - **Audit events.** A successful call is authorized twice, by the MCP execution gate and again when the inspector runs, so two `AuthorizationEvaluated` events are dispatched per call.
 
+### `beacon.get_config`
+
+Approved Laravel configuration metadata and a fixed set of deterministic checks. This is not a configuration dump. Callers cannot name an arbitrary key, and secret values are omitted rather than masked.
+
+|                 |                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Capability      | `config` (`config:read`)                                                                |
+| Inspector       | `config` (`Beacon\Inspectors\ConfigurationInspector`)                                   |
+| Analyzer        | `Beacon\Inspectors\Configuration\ConfigurationAnalyzer`                                 |
+| Parameters      | Optional `category`, `id`, `page`, `limit`                                              |
+| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`. laravel/mcp 1.1+ also copies the tool title into `annotations`. |
+
+There is no Artisan command for this inspection. Allow it explicitly:
+
+```dotenv
+BEACON_ALLOWED_CAPABILITIES=config
+```
+
+Disable the inspector to remove the tool from `tools/list`:
+
+```php
+'inspectors' => [
+    'config' => ['enabled' => false],
+],
+```
+
+`beacon.inspectors.config.namespaces` remains in the published configuration for compatibility. It is not a list of paths the tool will return, and adding a namespace there does not widen the allowlist.
+
+#### Allowlisted settings
+
+Settings are returned in this order. A present `value` is a boolean or a short classification. `sensitive`, `missing`, and `invalid` always have `value: null`.
+
+| Category       | Settings                                                                                                      | Safe values                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `application`  | `app.cipher`, `app.maintenance_driver`, `app.key`                                                            | `AES-256-CBC` or `AES-128-CBC`; `file` or `cache`. `app.key` is presence only. |
+| `database`     | `database.default`, `database.connection`, `database.driver`, `database.password`, `database.url`           | A short connection name, `registered`, and a recognised driver. Password and URL are presence only. |
+| `cache`        | `cache.default`, `cache.store`, `cache.driver`                                                               | A short store name, `registered`, and a recognised driver.                  |
+| `queue`        | `queue.default`, `queue.connection`, `queue.driver`, `queue.name`                                           | A short connection name, `registered`, a recognised driver, and a short queue name. |
+| `session`      | `session.driver`, `session.secure`, `session.http_only`, `session.same_site`, `session.encrypt`, `session.cookie` | A recognised driver, booleans, `lax`, `strict` or `none`, and a short cookie name. |
+| `mail`         | `mail.default`, `mail.mailer`, `mail.transport`, `mail.scheme`, `mail.username`, `mail.password`            | A short mailer name, `registered`, a recognised transport, and `smtp`, `smtps`, `tls` or `ssl`. Username and password are presence only. |
+| `filesystem`   | `filesystem.default`, `filesystem.disk`, `filesystem.driver`, `filesystem.visibility`, `filesystem.credentials` | A short disk name, `registered`, a recognised driver, and `public` or `private`. Credentials are presence only. |
+| `logging`      | `logging.default`, `logging.channel`, `logging.driver`, `logging.level`, `logging.handler`, `logging.webhook` | A short channel name, `registered`, a recognised driver and level, and a namespaced `*Handler` class. Webhook URLs are presence only. |
+
+The category id is `filesystem`. The Laravel file name `filesystems` is not accepted. Recognised drivers are the drivers Laravel ships in the supported framework versions. Beacon does not instantiate a manager to discover custom drivers, so an application-defined driver is `invalid`.
+
+A named connection, store, disk, mailer, or channel is followed only when its name is a dot-free identifier. If that name equals the definition's password, username, key, secret, or URL, the name is withheld.
+
+#### Intentionally excluded
+
+These are never returned, even when they sit on the default connection or disk:
+
+- Database hosts, ports, database names, usernames, sockets, and sqlite file paths.
+- Redis, cache, queue, and mail hosts, keys, secrets, and regions.
+- Connection strings, DSNs, application keys, private keys, OAuth secrets, and session cookie values.
+- Mail usernames and passwords, webhook URLs, and queue URLs or ARNs.
+- Filesystem roots, buckets, regions, and endpoints.
+- The contents of `.env`, `getenv()`, or the full configuration repository.
+- Any path a caller supplies, including `database.connections.mysql.password` and wildcards.
+
+If a value's sensitivity is uncertain, the setting is `sensitive` or `invalid` and the value is null. Findings, errors, and logs do not repeat it.
+
+#### Filters and pagination
+
+Every filter is optional. `page` defaults to 1 and must be an integer from 1 to 10000. `limit` defaults to 50 and must be an integer from 1 to 100. A larger limit is an error, not a silent clamp. A page past the end returns no settings and the real total.
+
+| Filter     | Match                                                                                          |
+| ---------- | ---------------------------------------------------------------------------------------------- |
+| `category` | One approved category, compared case-insensitively.                                           |
+| `id`       | One approved setting id, compared case-insensitively. When `category` is also set, the id must belong to it. |
+
+Unknown categories, unknown ids, nested paths, empty strings, non-scalars, and values above the length limits are rejected. The error names the rule and does not repeat the rejected value. There is no wildcard, regular expression, or configuration-path mode. Settings stay in the allowlist order above.
+
+`pagination.total` is the number of allowlisted settings that matched, before the page was sliced. Findings are computed on the full allowlist before that slice, so a category filter cannot hide a failure.
+
+#### Response
+
+```json
+{
+    "schema_version": 1,
+    "pagination": {"page": 1, "per_page": 50, "total": 1, "pages": 1, "count": 1},
+    "settings": [
+        {"category": "database", "id": "database.driver", "state": "present", "value": "mysql"}
+    ],
+    "findings": []
+}
+```
+
+`null` means missing, invalid, or withheld. It is not a redaction token. `[REDACTED]` is not used as a stand-in for a secret in this inspection.
+
+#### Findings
+
+| Check id                   | Status it can report                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------ |
+| `app_cipher`                | `fail` (medium) when the cipher is missing or not `AES-256-CBC` or `AES-128-CBC`.   |
+| `app_maintenance_driver`   | `pass` when unset, because Laravel uses its default. `fail` (low) when the value is not `file` or `cache`. |
+| `database_connection`      | `fail` (medium) when the default connection is unset, unregistered, or uses an unrecognised driver. `unknown` when the name cannot be read safely. |
+| `cache_store`              | Same reference rules for the default cache store.                                   |
+| `queue_connection`         | Same reference rules for the default queue connection.                              |
+| `mail_mailer`              | Same reference rules for the default mailer.                                        |
+| `filesystem_disk`          | Same reference rules for the default filesystem disk.                               |
+| `logging_channel`          | Same reference rules, plus `fail` (medium) when an explicit level is not recognised. A missing level is a pass. |
+| `session_driver`           | `fail` (medium) when the session driver is missing or not recognised.               |
+| `session_secure_cookie`    | `fail` (high) only when the environment is exactly `production`, the application URL scheme is `https`, and the Secure flag is false. A missing flag in that same context is `risk` (medium). Any other context is `pass` or `unknown`. |
+
+`pass` and `unknown` use severity `none`. Descriptions and remediation do not include configured names, drivers, URLs, or secrets. `session_secure_cookie` is narrower than environment inspection's `session_secure_cookie_in_production`, which does not require the URL scheme to be https. A missing application key is reported by environment inspection; this tool only says whether `app.key` is present.
+
+#### Errors
+
+| Situation                                                          | What the client receives                                                                 |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Missing or wrong bearer token                                      | HTTP 401, before the tool runs                                                           |
+| Caller lacks `config`                                              | JSON-RPC error `-32001`, "Permission denied."                                            |
+| Authorization denied at the tool itself                            | Tool result with `isError: true` and "Permission denied."                                |
+| Invalid filter                                                     | Tool result with `isError: true` and a fixed message that does not echo the input        |
+| Inspector disabled                                                 | The tool is not listed; calling it returns "Tool not found"                              |
+| Inspection fails unexpectedly                                      | Tool result with `isError: true` and "Configuration inspection is currently unavailable." |
+
+Failure messages for unexpected errors are fixed strings. Exception messages, classes, stack traces, and configuration values are not returned, even with `APP_DEBUG=true`, and Beacon does not log them.
+
+#### Adding a setting
+
+A new field is a code change, not a configuration change. Add it to `ConfigurationCatalog::IDS`, teach `ConfigurationReader` to map only that field, and reject unsafe values in `ConfigurationSetting`. Review the field before merging:
+
+- The value must be necessary for troubleshooting and safe to disclose.
+- Prefer a classification (`registered`, a driver name, a boolean) over the raw value.
+- Do not add hosts, paths, credentials, or free-form strings.
+- Add a test that plants the secret in the surrounding configuration and asserts it is absent from the serialized inspection and from the MCP response, not merely replaced with `[REDACTED]`.
+
+#### Limitations
+
+- **No connectivity checks.** A registered driver can still be unreachable. Beacon does not connect to a database, cache, queue, or mail server to find out.
+- **Custom drivers are `invalid`.** The recognised set is the drivers Laravel ships in supported versions, not drivers registered on a manager at runtime.
+- **Dotted names are not followed.** `reports.primary` is withheld instead of walking nested keys.
+- **Queue names are narrow.** A URL, ARN, or name that is not a short identifier is withheld. An SQS `.fifo` name is `invalid` and is not copied.
+- **Handlers are class-shaped only.** A Monolog handler is returned when it is a namespaced class ending in `Handler`. Anything else is withheld.
+- **Production means the exact name.** `prod` does not enable `session_secure_cookie`. The application URL is reduced to `http` or `https` and is not returned.
+- **The serving process.** Over stdio, the configuration is the CLI process. A cached configuration belongs to that process.
+- **Audit events.** A successful call is authorized twice, by the MCP execution gate and again when the inspector runs, so two `AuthorizationEvaluated` events are dispatched per call.
+
 ## Architecture
 
 Beacon keeps collecting information separate from exposing it:
@@ -831,12 +971,12 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
 | `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config), `Version` (installed version)                |
-| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
-| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, and the environment and route analyzers with their checks         |
+| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `ConfigurationInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
+| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, `ConfigurationInspector`, and the environment, route, and configuration analyzers with their checks |
 | `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `UrlSanitizer`, `BearerTokenAuthenticator`, `Principal` |
 | `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
 | `Beacon\Health`     | `HealthStatus`                                                                                                                                      |
-| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, `Tools\GetApplicationInfoTool`, `Tools\GetEnvironmentTool`, `Tools\GetRoutesTool`. The only namespace that depends on `laravel/mcp`. |
+| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, `Tools\GetApplicationInfoTool`, `Tools\GetEnvironmentTool`, `Tools\GetRoutesTool`, `Tools\GetConfigTool`. The only namespace that depends on `laravel/mcp`. |
 | `Beacon\Diagnostics` | `Diagnostics` (the `beacon:check` checks), `DiagnosticReport`, `CheckResult`, `DiagnosticStatus`. Uses `laravel/mcp` only when it is installed. |
 | `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:install` and `beacon:check`                                                         |
 
@@ -850,7 +990,7 @@ The built-in pattern, which every Beacon inspector follows, is:
 2. It returns a typed DTO (`Beacon\Data\ApplicationInfo`) that holds only scalars, so nothing else can be serialized.
 3. A thin MCP tool (`Beacon\Mcp\Tools\GetApplicationInfoTool`) declares the capability, calls `Beacon::inspect()` with the caller's `Principal`, and returns the redacted payload as structured content.
 
-Environment inspection adds a step between 1 and 3: `EnvironmentInspector` collects `EnvironmentFacts`, and `EnvironmentAnalyzer` turns those facts into findings. Route inspection does the same with a `RouteCatalog` and `RouteAnalyzer`, after validating literal filters. Checks never read Laravel themselves. The tool still only calls `Beacon::inspect()`.
+Environment inspection adds a step between 1 and 3: `EnvironmentInspector` collects `EnvironmentFacts`, and `EnvironmentAnalyzer` turns those facts into findings. Route inspection does the same with a `RouteCatalog` and `RouteAnalyzer`, after validating literal filters. Configuration inspection collects a `ConfigurationCatalog` through an explicit field allowlist and evaluates it with `ConfigurationAnalyzer`. Checks never read Laravel themselves. The tool still only calls `Beacon::inspect()`.
 
 Applications and packages can add their own inspectors the same way. Register a read capability for them, since only registered capabilities can be allowed:
 

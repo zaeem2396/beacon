@@ -276,7 +276,7 @@ Never:
 
 # 8. MCP Tools
 
-Application information, environment inspection and route inspection are implemented. The other tools in this section are the later read-only plan (configuration, database, migrations, exceptions, and queues). Do not implement them until their roadmap version.
+Application information, environment inspection, route inspection and configuration inspection are implemented. The other tools in this section are the later read-only plan (database, migrations, exceptions, and queues). Do not implement them until their roadmap version.
 
 ## `beacon.get_application_info`
 
@@ -352,24 +352,27 @@ Do not dispatch routes or resolve controller middleware. Do not dump an unlimite
 
 ## `beacon.get_config`
 
-Expose only approved configuration namespaces.
+Implemented. Requires the `config` capability. There is no Artisan command for this inspection.
 
-Never expose the entire configuration repository blindly.
+Return one page of approved configuration settings and findings for the full allowlist. A finding can describe a setting that is not on the current page or in the selected category.
 
-Initial namespaces may include:
+Each setting has a category, an allowlisted id, a state (`present`, `missing`, `invalid`, or `sensitive`), and a value. A present value is a boolean or a short classification. Every other state has `null`. Do not return `[REDACTED]` as a stand-in for a secret.
 
-```text
-app
-cache
-database
-queue
-session
-filesystems
-mail
-logging
-```
+Categories are `application`, `database`, `cache`, `queue`, `session`, `mail`, `filesystem`, and `logging`. The Laravel file name `filesystems` is not a category. Callers cannot request nested paths, wildcards, or arbitrary keys. `beacon.inspectors.config.namespaces` is not a dump switch.
 
-Sensitive values must be redacted.
+Do not return database passwords, connection strings, hosts, database names, usernames, sockets, application keys, tokens, mail credentials, private keys, OAuth secrets, session secrets, webhook URLs, filesystem paths, buckets, regions, or the contents of `.env`. Named connections are followed only when the name is a dot-free identifier. If the sensitivity of a field is uncertain, omit the value.
+
+Filters are an approved category and an approved setting id. `page` defaults to 1 (maximum 10000). `limit` defaults to 50 and cannot exceed 100. Invalid filters are rejected with a fixed message that does not repeat the input.
+
+Findings:
+
+* `app_cipher` fails when the cipher is missing or not a recognised value.
+* `app_maintenance_driver` passes when unset. It fails when the value is not `file` or `cache`.
+* `database_connection`, `cache_store`, `queue_connection`, `mail_mailer`, `filesystem_disk`, and `logging_channel` fail when the default name is unset, unregistered, or uses an unrecognised driver. An unreadable name is `unknown`. An explicit unrecognised log level also fails. A missing log level does not.
+* `session_driver` fails when the driver is missing or not recognised.
+* `session_secure_cookie` fails only when the environment is exactly `production`, the application URL scheme is `https`, and the Secure flag is false. A missing flag in that context is `risk`. Otherwise the check is `pass` or `unknown`. It does not replace the broader environment-inspection cookie checks.
+
+Do not connect to a database, cache, queue, or mail server, and do not mutate configuration. Adding a field requires a reviewed change to the code allowlist, not a configuration change.
 
 ---
 
