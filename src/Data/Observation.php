@@ -25,4 +25,6 @@ enum Observation: string
     case Lax = 'lax';
     case Strict = 'strict';
     case None = 'none';
+    case Duplicate = 'duplicate';
+    case Heuristic = 'heuristic';
 }

@@ -276,7 +276,7 @@ Never:
 
 # 8. MCP Tools
 
-Application information and environment inspection are implemented. The other tools in this section are the later read-only plan (database, migrations, exceptions, and queues). Do not implement them until their roadmap version.
+Application information, environment inspection and route inspection are implemented. The other tools in this section are the later read-only plan (configuration, database, migrations, exceptions, and queues). Do not implement them until their roadmap version.
 
 ## `beacon.get_application_info`
 
@@ -322,17 +322,31 @@ Sensitive settings, including the application key, report presence only. The app
 
 ## `beacon.get_routes`
 
-Return:
+Implemented. Requires the `routes` capability. There is no Artisan command for this inspection.
 
-* route URI
-* HTTP methods
+Return one page of route records and findings for the whole route table. A finding can mention a route that is not on the current page.
+
+Each record, where the value is safe to disclose:
+
+* HTTP methods, in a fixed order
+* URI pattern
 * route name
-* controller/action
-* middleware
+* domain, when one is configured
+* normalized middleware names
+* controller/action identifier, or `closure`
+* `framework_generated`, which is `null` because route metadata does not reliably identify framework-generated routes
 
-Support pagination/limits if necessary.
+Missing or withheld values are `null`. Do not return closures, middleware objects, controllers, request objects, filesystem paths or source.
 
-Do not dump unlimited routes.
+Filters are literal: HTTP method, URI substring or exact URI, route name substring or exact name, and exact middleware name. A single leading slash on a URI filter is ignored. `contains` is the default string match and is not a regular expression. `page` defaults to 1 (maximum 10000). `limit` defaults to 50 and cannot exceed 100. Invalid filters are rejected with a fixed message that does not repeat the input.
+
+Findings:
+
+* `duplicate_route_names` reports a repeated disclosed name. It is not a vulnerability.
+* `sensitive_route_paths` is a heuristic whole-segment match. It does not mean the route is vulnerable, reachable or unauthenticated.
+* `authentication_middleware_excluded` reports only a recognised authentication middleware name that is explicitly excluded. An unfamiliar alias is not treated as missing authentication.
+
+Do not dispatch routes or resolve controller middleware. Do not dump an unlimited route list.
 
 ---
 
