@@ -15,6 +15,7 @@ use Beacon\Core\Beacon;
 use Beacon\Core\BeaconConfig;
 use Beacon\Core\InspectorRegistry;
 use Beacon\Inspectors\ApplicationInspector;
+use Beacon\Inspectors\ConfigurationInspector;
 use Beacon\Inspectors\EnvironmentInspector;
 use Beacon\Inspectors\RouteInspector;
 use Beacon\Mcp\BeaconMcpServiceProvider;
@@ -56,6 +57,7 @@ final class BeaconServiceProvider extends ServiceProvider
             $inspectors->register(ApplicationInspector::NAME, ApplicationInspector::class);
             $inspectors->register(EnvironmentInspector::NAME, EnvironmentInspector::class);
             $inspectors->register(RouteInspector::NAME, RouteInspector::class);
+            $inspectors->register(ConfigurationInspector::NAME, ConfigurationInspector::class);
         });
 
         $this->app->register(BeaconMcpServiceProvider::class);
