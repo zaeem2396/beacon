@@ -65,7 +65,18 @@ final class GetApplicationInfoToolTest extends McpTestCase
         $this->assertIsArray($tool);
         $this->assertSame('beacon.get_application_info', $tool['name']);
         $this->assertSame('Get application information', $tool['title']);
-        $this->assertSame(['readOnlyHint' => true, 'idempotentHint' => true, 'openWorldHint' => false], $tool['annotations']);
+
+        $annotations = $tool['annotations'];
+        $this->assertIsArray($annotations);
+        $this->assertSame(
+            ['readOnlyHint' => true, 'idempotentHint' => true, 'openWorldHint' => false],
+            array_diff_key($annotations, ['title' => true]),
+        );
+
+        // laravel/mcp 1.1+ also copies the tool title into annotations.
+        if (array_key_exists('title', $annotations)) {
+            $this->assertSame('Get application information', $annotations['title']);
+        }
         $this->assertSame([], (array) data_get($tool, 'inputSchema.properties'));
         $this->assertSame(self::FIELDS, array_keys((array) data_get($tool, 'outputSchema.properties')));
         $this->assertSame(self::FIELDS, data_get($tool, 'outputSchema.required'));
