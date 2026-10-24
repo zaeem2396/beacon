@@ -276,7 +276,7 @@ Never:
 
 # 8. MCP Tools
 
-Application information is implemented. The other tools in this section are the later read-only plan (database, migrations, exceptions, and queues). Do not implement them until their roadmap version.
+Application information and environment inspection are implemented. The other tools in this section are the later read-only plan (database, migrations, exceptions, and queues). Do not implement them until their roadmap version.
 
 ## `beacon.get_application_info`
 
@@ -302,18 +302,21 @@ Missing, invalid, or unreadable optional values are `null`. Do not expose secret
 
 ## `beacon.get_environment`
 
-Return safe environment/configuration metadata.
+Implemented. Requires the `environment` capability. There is no Artisan command for this inspection.
 
-The output must clearly identify:
+Return safe environment metadata and deterministic findings. Do not return the application identity report from `beacon.get_application_info`.
 
-```text
-present
-missing
-unsafe
-sensitive
-```
+Metadata:
 
-Sensitive values must be redacted.
+* environment name
+* debug mode, when it is a real boolean
+* timezone and locale, when valid
+* whether configuration and routes are cached in the serving process
+* an allowlist of settings, each `present`, `missing`, `invalid` or `sensitive`
+
+Findings use `pass`, `fail` (confirmed misconfiguration), `risk` (potential problem with evidence) or `unknown` (the check could not be evaluated). `pass` and `unknown` have severity `none`. Production-only checks run only when the environment is exactly `production`.
+
+Sensitive settings, including the application key, report presence only. The application URL is reduced to its scheme. Do not return `.env` contents, secrets, or arbitrary configuration keys.
 
 ---
 
