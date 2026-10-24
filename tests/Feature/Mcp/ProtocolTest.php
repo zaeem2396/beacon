@@ -7,7 +7,7 @@ namespace Beacon\Tests\Feature\Mcp;
 use Beacon\Mcp\BeaconServer;
 use Beacon\Mcp\McpRegistry;
 use Beacon\Mcp\McpUnavailableException;
-use Beacon\Tests\Fixtures\ApplicationInspector;
+use Beacon\Tests\Fixtures\LeakyInspector;
 use Beacon\Tests\Fixtures\Mcp\EchoTool;
 use Beacon\Tests\Fixtures\Mcp\RecordingTransport;
 use Orchestra\Testbench\Attributes\DefineEnvironment;
@@ -17,6 +17,12 @@ use PHPUnit\Framework\Attributes\Test;
 #[Group('mcp')]
 final class ProtocolTest extends McpTestCase
 {
+    /**
+     * Literal names: constant expressions are evaluated while PHPUnit builds
+     * the suite, where tool classes cannot load without laravel/mcp.
+     */
+    private const BUILT_IN_TOOLS = ['beacon.get_application_info'];
+
     #[Test]
     #[DefineEnvironment('enableMcp')]
     public function it_completes_the_initialize_handshake(): void
@@ -46,11 +52,11 @@ final class ProtocolTest extends McpTestCase
 
     #[Test]
     #[DefineEnvironment('enableMcp')]
-    public function it_exposes_no_tools_resources_or_prompts(): void
+    public function it_exposes_only_beacons_built_in_tools(): void
     {
         $transport = $this->startServer();
 
-        $this->assertSame([], data_get($transport->request('tools/list'), 'result.tools'));
+        $this->assertSame(self::BUILT_IN_TOOLS, $this->toolNames($transport));
         $this->assertSame([], data_get($transport->request('resources/list'), 'result.resources'));
         $this->assertSame([], data_get($transport->request('prompts/list'), 'result.prompts'));
     }
@@ -59,9 +65,9 @@ final class ProtocolTest extends McpTestCase
     #[DefineEnvironment('enableMcp')]
     public function registered_inspectors_are_not_exposed_as_tools(): void
     {
-        $this->application()->make(\Beacon\Core\InspectorRegistry::class)->register('application', ApplicationInspector::class);
+        $this->application()->make(\Beacon\Core\InspectorRegistry::class)->register('leaky', LeakyInspector::class);
 
-        $this->assertSame([], data_get($this->startServer()->request('tools/list'), 'result.tools'));
+        $this->assertSame(self::BUILT_IN_TOOLS, $this->toolNames($this->startServer()));
     }
 
     #[Test]
@@ -80,10 +86,7 @@ final class ProtocolTest extends McpTestCase
     {
         $this->application()->make(McpRegistry::class)->tool(EchoTool::class);
 
-        $tools = data_get($this->startServer()->request('tools/list'), 'result.tools');
-
-        $this->assertIsArray($tools);
-        $this->assertSame(['echo-tool'], array_column($tools, 'name'));
+        $this->assertSame([...self::BUILT_IN_TOOLS, 'echo-tool'], $this->toolNames($this->startServer()));
     }
 
     #[Test]
@@ -94,6 +97,17 @@ final class ProtocolTest extends McpTestCase
         $this->expectException(McpUnavailableException::class);
 
         $server->start();
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    private function toolNames(RecordingTransport $transport): array
+    {
+        $tools = data_get($transport->request('tools/list'), 'result.tools');
+        $this->assertIsArray($tools);
+
+        return array_column($tools, 'name');
     }
 
     private function startServer(): RecordingTransport

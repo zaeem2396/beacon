@@ -340,25 +340,29 @@ final class Diagnostics
 
     private function inspectorsState(): CheckResult
     {
-        $custom = count($this->inspectors->names());
+        $enabled = $this->inspectors->names();
 
-        return new CheckResult(
-            'inspectors',
-            'Inspectors',
-            Status::NotImplemented,
-            'Beacon\'s built-in inspectors are not implemented yet' . ($custom > 0 ? sprintf('; %d inspector(s) registered by the application.', $custom) : '.'),
-        );
+        if ($enabled === []) {
+            return new CheckResult('inspectors', 'Inspectors', Status::Disabled, 'Every inspector is disabled.', 'Enable inspectors under "inspectors" in config/beacon.php.');
+        }
+
+        return new CheckResult('inspectors', 'Inspectors', Status::Pass, sprintf('Enabled: %s.', implode(', ', $enabled)));
     }
 
     private function mcpTools(): CheckResult
     {
-        $registered = count($this->mcp->tools()) + count($this->mcp->resources()) + count($this->mcp->prompts());
+        $tools = count($this->mcp->tools());
+        $others = count($this->mcp->resources()) + count($this->mcp->prompts());
+
+        if ($tools + $others === 0) {
+            return new CheckResult('mcp.tools', 'MCP tools', Status::Disabled, 'No MCP tools are registered. Beacon\'s tools require laravel/mcp.');
+        }
 
         return new CheckResult(
             'mcp.tools',
             'MCP tools',
-            Status::NotImplemented,
-            'Beacon ships no MCP tools, resources or prompts yet' . ($registered > 0 ? sprintf('; %d registered by the application.', $registered) : '.'),
+            Status::Pass,
+            sprintf('%d tool(s)', $tools) . ($others > 0 ? sprintf(' and %d resource(s) or prompt(s)', $others) : '') . ' registered. Each runs only when its capability is allowed.',
         );
     }
 

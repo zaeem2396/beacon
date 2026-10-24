@@ -274,26 +274,33 @@ Never:
 
 ---
 
-# 8. v0.1 MCP Tools
+# 8. MCP Tools
 
-Implement the first tools as read-only capabilities.
+Application information is implemented. The other tools in this section are the later read-only plan (database, migrations, exceptions, and queues). Do not implement them until their roadmap version.
 
-## `Beacon.get_application_info`
+## `beacon.get_application_info`
+
+Implemented. Also available locally as `php artisan beacon:application` (`--json` uses the same schema). Requires the `application` capability.
 
 Return:
 
-* Laravel version
-* PHP version
-* environment
+* schema version
 * application name
-* runtime information
-* framework information
+* environment
+* debug mode
+* sanitized application URL (scheme, host, port, and path only)
+* timezone
+* locale and fallback locale
+* maintenance-mode status
+* Laravel version
+* PHP version of the process serving the call
+* Beacon version
 
-Do not expose secrets.
+Missing, invalid, or unreadable optional values are `null`. Do not expose secrets, other configuration, environment variables, or filesystem paths.
 
 ---
 
-## `Beacon.get_environment`
+## `beacon.get_environment`
 
 Return safe environment/configuration metadata.
 
@@ -310,7 +317,7 @@ Sensitive values must be redacted.
 
 ---
 
-## `Beacon.get_routes`
+## `beacon.get_routes`
 
 Return:
 
@@ -326,7 +333,7 @@ Do not dump unlimited routes.
 
 ---
 
-## `Beacon.get_config`
+## `beacon.get_config`
 
 Expose only approved configuration namespaces.
 
@@ -349,7 +356,7 @@ Sensitive values must be redacted.
 
 ---
 
-## `Beacon.get_database_status`
+## `beacon.get_database_status`
 
 Return:
 
@@ -363,7 +370,7 @@ Never expose credentials.
 
 ---
 
-## `Beacon.get_database_schema`
+## `beacon.get_database_schema`
 
 Return structured schema information.
 
@@ -387,7 +394,7 @@ Do not return table data.
 
 ---
 
-## `Beacon.get_pending_migrations`
+## `beacon.get_pending_migrations`
 
 Return:
 
@@ -398,7 +405,7 @@ Return:
 
 ---
 
-## `Beacon.get_recent_exceptions`
+## `beacon.get_recent_exceptions`
 
 Return sanitized recent application errors.
 
@@ -426,7 +433,7 @@ Do not expose:
 
 ---
 
-## `Beacon.get_failed_jobs`
+## `beacon.get_failed_jobs`
 
 Return:
 
@@ -441,7 +448,7 @@ Do not expose arbitrary job payloads.
 
 ---
 
-## `Beacon.get_queue_status`
+## `beacon.get_queue_status`
 
 Return:
 
@@ -464,16 +471,16 @@ Use stable, explicit names.
 Preferred:
 
 ```text
-Beacon.get_application_info
-Beacon.get_environment
-Beacon.get_routes
-Beacon.get_config
-Beacon.get_database_status
-Beacon.get_database_schema
-Beacon.get_pending_migrations
-Beacon.get_recent_exceptions
-Beacon.get_failed_jobs
-Beacon.get_queue_status
+beacon.get_application_info
+beacon.get_environment
+beacon.get_routes
+beacon.get_config
+beacon.get_database_status
+beacon.get_database_schema
+beacon.get_pending_migrations
+beacon.get_recent_exceptions
+beacon.get_failed_jobs
+beacon.get_queue_status
 ```
 
 Avoid vague names such as:
@@ -653,15 +660,13 @@ This is essential for gaining trust with enterprise customers.
 Initial commands:
 
 ```bash
-php artisan Beacon
-php artisan Beacon:install
-php artisan Beacon:check
-php artisan Beacon:mcp
+php artisan beacon
+php artisan beacon:application
+php artisan beacon:install
+php artisan beacon:check
 ```
 
-The exact command names can be refined during implementation.
-
-`Beacon:check` should produce both:
+`beacon:application` prints the same metadata as `beacon.get_application_info`. `beacon:check` currently reports Beacon's own configuration and security posture. The later health report should produce both:
 
 human-readable output:
 
@@ -680,7 +685,7 @@ Risk: MEDIUM
 and machine-readable output:
 
 ```bash
-php artisan Beacon:check --json
+php artisan beacon:check --json
 ```
 
 ---
@@ -763,7 +768,7 @@ Do not require:
 schema-lens
 runtime-insight
 runtime-shield
-runtime-obeserva
+runtime-observa
 ```
 
 in the first release.
@@ -774,7 +779,7 @@ Later create optional integrations:
 Beacon-schema-lens
 Beacon-runtime-insight
 Beacon-runtime-shield
-Beacon-obeserva
+beacon-observa
 ```
 
 or equivalent adapters.

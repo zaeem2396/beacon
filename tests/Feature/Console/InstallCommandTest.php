@@ -50,6 +50,7 @@ final class InstallCommandTest extends TestCase
 
         $this->assertStringContainsString('BEACON_MCP_ENABLED=true', $output);
         $this->assertStringContainsString('BEACON_MCP_TOKEN=<random token of at least 32 characters>', $output);
+        $this->assertStringContainsString('beacon:application', $output);
         $this->assertStringContainsString('beacon:check', $output);
         $this->assertDoesNotMatchRegularExpression('/[A-Za-z0-9+\/]{32,}/', $output);
     }

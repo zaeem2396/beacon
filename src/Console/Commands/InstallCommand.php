@@ -62,6 +62,7 @@ final class InstallCommand extends Command
         }
 
         $this->line('  Remote (HTTP) access is a separate opt-in; see the README before enabling it.');
+        $this->line('  Inspect this application with <fg=green>php artisan beacon:application</> after allowing the application capability.');
         $this->line('  Then run <fg=green>php artisan beacon:check</> to verify your setup.');
         $this->newLine();
 

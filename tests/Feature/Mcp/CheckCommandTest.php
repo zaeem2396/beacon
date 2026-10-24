@@ -30,7 +30,8 @@ final class CheckCommandTest extends McpTestCase
         $this->assertSame('pass', $statuses['auth']);
         $this->assertSame('disabled', $statuses['mcp.http']);
         $this->assertSame('pass', $statuses['security.capabilities']);
-        $this->assertSame('not_implemented', $statuses['mcp.tools']);
+        $this->assertSame('pass', $statuses['mcp.tools']);
+        $this->assertSame('pass', $statuses['inspectors']);
     }
 
     #[Test]
