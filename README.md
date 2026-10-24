@@ -2,7 +2,7 @@
 
 Laravel Beacon exposes safe, structured production information about a Laravel application to AI agents (Claude, Cursor and other MCP clients) so they can investigate production problems using real application evidence.
 
-> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation (`beacon`, `beacon:install`, `beacon:check`) are in place. The first inspector and MCP tool, [`beacon.get_application_info`](#beaconget_application_info), are available. Environment, route, configuration and health inspection are next. See [ROADMAP.md](ROADMAP.md).
+> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation are in place. Application information is available through [`beacon:application`](#beaconapplication) and [`beacon.get_application_info`](#beaconget_application_info). Environment, route, configuration and health inspection are next. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -28,11 +28,37 @@ See [Artisan commands](#artisan-commands) for details.
 
 | Command                      | Purpose                                                                 |
 | ---------------------------- | ----------------------------------------------------------------------- |
-| `php artisan beacon`         | Installed version, whether Beacon and MCP are active, available commands |
-| `php artisan beacon:install` | Publish `config/beacon.php` and explain the remaining manual setup      |
-| `php artisan beacon:check`   | Diagnose the installation and configuration (`--json` for automation)   |
+| `php artisan beacon`              | Installed version, whether Beacon and MCP are active, available commands |
+| `php artisan beacon:application`  | Safe application and runtime metadata (`--json` for the MCP tool schema) |
+| `php artisan beacon:install`      | Publish `config/beacon.php` and explain the remaining manual setup       |
+| `php artisan beacon:check`        | Diagnose the installation and configuration (`--json` for automation)    |
 
 Every command supports `--help`. None of them print tokens or other secret configuration values.
+
+### `beacon:application`
+
+```bash
+php artisan beacon:application
+php artisan beacon:application --json
+```
+
+Prints the same metadata as [`beacon.get_application_info`](#beaconget_application_info): application name, environment, debug mode, sanitized URL, timezone, locales, maintenance mode, and the Laravel, PHP and Beacon versions.
+
+It requires the `application` capability. With the default empty allowlist the command exits `1` and prints nothing about the application:
+
+```dotenv
+BEACON_ALLOWED_CAPABILITIES=application
+```
+
+`--json` prints that tool's schema on stdout and nothing else. `null` means the value is missing, invalid or could not be read. Human output shows those values as `unknown`.
+
+| Code | Meaning                                                                 |
+| ---- | ----------------------------------------------------------------------- |
+| `0`  | The information was printed                                             |
+| `1`  | Beacon is disabled, the capability is not allowed, or the inspector is disabled |
+| `2`  | The information could not be collected                                  |
+
+A failure never includes the exception message. Secrets, credentials in `APP_URL`, and other configuration values are not printed.
 
 ### `beacon:install`
 
@@ -155,7 +181,7 @@ The output never contains token values, secret configuration values, environment
 
 ### Limitations
 
-- `beacon:check` validates Beacon itself; it does not run inspectors or connect to your database, cache or queue. Use the [MCP tools](#mcp-tools) to inspect the application.
+- `beacon:check` validates Beacon itself; it does not run inspectors or connect to your database, cache or queue. Use [`beacon:application`](#beaconapplication) or the [MCP tools](#mcp-tools) to inspect the application.
 - The checks reflect the configuration of the process that runs them. With a cached configuration (`php artisan config:cache`), run `php artisan config:clear` after changing `.env`.
 - There is no dedicated MCP management command; start the server with `php artisan mcp:start beacon` and verify it with `beacon:check`.
 
@@ -458,6 +484,8 @@ Safe metadata about the Laravel application and the PHP runtime serving the MCP 
 | Parameters      | None. Any arguments sent by the client are ignored.                       |
 | Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`      |
 
+`php artisan beacon:application` prints this same result for a local operator. `--json` uses this schema.
+
 Allow it explicitly:
 
 ```dotenv
@@ -559,7 +587,7 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | `Beacon\Health`     | `HealthStatus`                                                                                                                                      |
 | `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, `Tools\GetApplicationInfoTool`. The only namespace that depends on `laravel/mcp`. |
 | `Beacon\Diagnostics` | `Diagnostics` (the `beacon:check` checks), `DiagnosticReport`, `CheckResult`, `DiagnosticStatus`. Uses `laravel/mcp` only when it is installed. |
-| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:install` and `beacon:check`                                                                              |
+| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:install` and `beacon:check`                                                         |
 
 Inspectors know nothing about MCP. Consumers call `Beacon::inspect()`, which authorizes the inspector's capability, runs it and returns a `Payload`. A `Payload` can only be built from `Data` and is always normalized and redacted, so a secret copied into a DTO by mistake is still removed before output.
 
