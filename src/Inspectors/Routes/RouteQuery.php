@@ -22,7 +22,7 @@ final readonly class RouteQuery
 
     public const MAX_PAGE = 10000;
 
-    private const PARAMETERS = ['method', 'uri', 'uri_match', 'name', 'name_match', 'middleware', 'page', 'limit'];
+    public const PARAMETERS = ['method', 'uri', 'uri_match', 'name', 'name_match', 'middleware', 'page', 'limit'];
 
     public function __construct(
         public ?string $method,

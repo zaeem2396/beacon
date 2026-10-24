@@ -58,7 +58,7 @@ final class StdioTransportTest extends TestCase
 
         $this->assertCount(2, $responses);
         $this->assertSame('Laravel Beacon', data_get($responses[0], 'result.serverInfo.name'));
-        $this->assertSame([self::APPLICATION_TOOL, 'beacon.get_environment'], array_column((array) data_get($responses[1], 'result.tools'), 'name'));
+        $this->assertSame([self::APPLICATION_TOOL, 'beacon.get_environment', 'beacon.get_routes'], array_column((array) data_get($responses[1], 'result.tools'), 'name'));
     }
 
     #[Test]
