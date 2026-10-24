@@ -81,6 +81,9 @@ php artisan beacon:install
     BEACON_MCP_TOKEN=<random token of at least 32 characters>
     BEACON_MCP_ENVIRONMENTS=local
     BEACON_ALLOWED_CAPABILITIES=<capabilities to allow, e.g. application,routes>
+
+  Inspect this application with php artisan beacon:application after allowing the application capability.
+  Then run php artisan beacon:check to verify your setup.
 ```
 
 ### `beacon:check`
@@ -366,7 +369,7 @@ Every operation that exposes application information requires exactly one capabi
 
 | Capability    | Covers                                                        |
 | ------------- | ------------------------------------------------------------- |
-| `application` | Application metadata (Laravel and PHP versions, name)         |
+| `application` | Application metadata: name, environment, debug, sanitized URL, timezone, locales, maintenance mode, and Laravel, PHP and Beacon versions |
 | `environment` | Environment metadata and unsafe-configuration findings        |
 | `routes`      | Routes, HTTP methods, middleware and route metadata           |
 | `config`      | Selected configuration values, with secrets masked            |
@@ -482,7 +485,7 @@ Safe metadata about the Laravel application and the PHP runtime serving the MCP 
 | Capability      | `application` (`application:read`)                                      |
 | Inspector       | `application` (`Beacon\Inspectors\ApplicationInspector`)                 |
 | Parameters      | None. Any arguments sent by the client are ignored.                       |
-| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`      |
+| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`. laravel/mcp 1.1+ also copies the tool title into `annotations`. |
 
 `php artisan beacon:application` prints this same result for a local operator. `--json` uses this schema.
 
