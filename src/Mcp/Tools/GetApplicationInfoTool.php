@@ -54,9 +54,10 @@ final class GetApplicationInfoTool extends Tool implements RequiresCapability
 
         Does not return configuration values, environment variables, .env contents, application
         keys, credentials, tokens, filesystem paths, server variables or request headers.
-        It does not diagnose problems: use beacon.get_environment for configuration risks
-        and beacon.get_routes for registered routes. Database, queue and error inspection
-        are separate tools when they are available.
+        It does not diagnose problems: use beacon.get_environment for environment risks,
+        beacon.get_routes for registered routes, and beacon.get_config for approved
+        configuration metadata. Database, queue and error inspection are separate tools
+        when they are available.
 
         php_version describes the process serving this MCP connection. Over stdio that is the
         PHP CLI, whose version and settings can differ from PHP-FPM serving web traffic.
