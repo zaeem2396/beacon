@@ -2,7 +2,7 @@
 
 Laravel Beacon exposes safe, structured production information about a Laravel application to AI agents (Claude, Cursor and other MCP clients) so they can investigate production problems using real application evidence.
 
-> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation are in place. Application information is available through [`beacon:application`](#beaconapplication) and [`beacon.get_application_info`](#beaconget_application_info). Environment inspection is available through [`beacon.get_environment`](#beaconget_environment). Route inspection is available through [`beacon.get_routes`](#beaconget_routes). Configuration inspection is available through [`beacon.get_config`](#beaconget_config). Health inspection is next. See [ROADMAP.md](ROADMAP.md).
+> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation are in place. Application information is available through [`beacon:application`](#beaconapplication) and [`beacon.get_application_info`](#beaconget_application_info). Environment inspection is available through [`beacon.get_environment`](#beaconget_environment). Route inspection is available through [`beacon.get_routes`](#beaconget_routes). Configuration inspection is available through [`beacon.get_config`](#beaconget_config). Health inspection is available through [`beacon:health`](#beaconhealth) and [`beacon.get_health`](#beaconget_health). Database intelligence is next. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -30,6 +30,7 @@ See [Artisan commands](#artisan-commands) for details.
 | ---------------------------- | ----------------------------------------------------------------------- |
 | `php artisan beacon`              | Installed version, whether Beacon and MCP are active, available commands |
 | `php artisan beacon:application`  | Safe application and runtime metadata (`--json` for the MCP tool schema) |
+| `php artisan beacon:health`       | Read-only health report (`--json` for the MCP tool schema)               |
 | `php artisan beacon:install`      | Publish `config/beacon.php` and explain the remaining manual setup       |
 | `php artisan beacon:check`        | Diagnose the installation and configuration (`--json` for automation)    |
 
@@ -59,6 +60,17 @@ BEACON_ALLOWED_CAPABILITIES=application
 | `2`  | The information could not be collected                                  |
 
 A failure never includes the exception message. Secrets, credentials in `APP_URL`, and other configuration values are not printed.
+
+### `beacon:health`
+
+```bash
+php artisan beacon:health
+php artisan beacon:health --json
+```
+
+Prints the same report as [`beacon.get_health`](#beaconget_health). It requires the `health` capability. Database, cache, and queue probes stay off unless `beacon.health` enables them. The command does not accept check names.
+
+Exit `0` means the report was printed. A critical check is still exit `0`; the health status is in the output. Exit `1` means Beacon or the capability does not allow the command, or the inspector is disabled. Exit `2` means the report could not be collected. A failure never includes the exception message.
 
 ### `beacon:install`
 
@@ -184,7 +196,7 @@ The output never contains token values, secret configuration values, environment
 
 ### Limitations
 
-- `beacon:check` validates Beacon itself; it does not run inspectors or connect to your database, cache or queue. Use [`beacon:application`](#beaconapplication) or the [MCP tools](#mcp-tools) to inspect the application.
+- `beacon:check` validates Beacon itself; it does not run inspectors or connect to your database, cache or queue. Use [`beacon:application`](#beaconapplication), [`beacon:health`](#beaconhealth), or the [MCP tools](#mcp-tools) to inspect the application.
 - The checks reflect the configuration of the process that runs them. With a cached configuration (`php artisan config:cache`), run `php artisan config:clear` after changing `.env`.
 - There is no dedicated MCP management command; start the server with `php artisan mcp:start beacon` and verify it with `beacon:check`.
 
@@ -357,7 +369,7 @@ What an authenticated client may do is decided separately; see [Authorization an
 - **Tokens do not expire.** They stay valid until you rotate them.
 - **No built-in rate limiting.** A 32+ character random token cannot realistically be guessed, but you can add Laravel's `throttle` middleware in front of the endpoint if you need request limits.
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
-- **Four tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment), [`beacon.get_routes`](#beaconget_routes) and [`beacon.get_config`](#beaconget_config). Further tools follow the [roadmap](ROADMAP.md).
+- **Five tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment), [`beacon.get_routes`](#beaconget_routes), [`beacon.get_config`](#beaconget_config) and [`beacon.get_health`](#beaconget_health). Further tools follow the [roadmap](ROADMAP.md).
 
 ## Authorization and the read-only model
 
@@ -379,7 +391,7 @@ Every operation that exposes application information requires exactly one capabi
 | `queue`       | Queue and failed-job metadata                                 |
 | `health`      | Application and infrastructure health results                 |
 
-`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). The others define permissions for upcoming inspectors and grant nothing yet.
+`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). The others define permissions for upcoming inspectors and grant nothing yet.
 
 ### Default deny
 
@@ -478,6 +490,7 @@ Every Beacon tool is read-only, requires exactly one capability, and runs only f
 | `beacon.get_environment`      | `environment` | Allowlisted environment settings and deterministic configuration findings                            |
 | `beacon.get_routes`           | `routes`      | Registered routes, literal filters, pagination, and deterministic route findings                      |
 | `beacon.get_config`           | `config`      | Approved configuration metadata, literal filters, pagination, and deterministic configuration findings |
+| `beacon.get_health`           | `health`      | Read-only application, database, cache, and queue health, with optional dependency probes |
 
 ### `beacon.get_application_info`
 
@@ -948,13 +961,115 @@ A new field is a code change, not a configuration change. Add it to `Configurati
 
 #### Limitations
 
-- **No connectivity checks.** A registered driver can still be unreachable. Beacon does not connect to a database, cache, queue, or mail server to find out.
+- **No connectivity checks.** Configuration inspection does not open a connection. A registered driver can still be unreachable. Optional reachability probes belong to [`beacon.get_health`](#beaconget_health).
 - **Custom drivers are `invalid`.** The recognised set is the drivers Laravel ships in supported versions, not drivers registered on a manager at runtime.
 - **Dotted names are not followed.** `reports.primary` is withheld instead of walking nested keys.
 - **Queue names are narrow.** A URL, ARN, or name that is not a short identifier is withheld. An SQS `.fifo` name is `invalid` and is not copied.
 - **Handlers are class-shaped only.** A Monolog handler is returned when it is a namespaced class ending in `Handler`. Anything else is withheld.
 - **Production means the exact name.** `prod` does not enable `session_secure_cookie`. The application URL is reduced to `http` or `https` and is not returned.
 - **The serving process.** Over stdio, the configuration is the CLI process. A cached configuration belongs to that process.
+- **Audit events.** A successful call is authorized twice, by the MCP execution gate and again when the inspector runs, so two `AuthorizationEvaluated` events are dispatched per call.
+
+### `beacon.get_health`
+
+A read-only health report for this Laravel process. It does not repeat environment or configuration findings, and it does not inspect schema, migrations, exceptions, or queue backlogs.
+
+|                 |                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Capability      | `health` (`health:read`)                                                                |
+| Inspector       | `health` (`Beacon\Inspectors\HealthInspector`)                                          |
+| Parameters      | None. Any argument is rejected and is not echoed.                                       |
+| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`. laravel/mcp 1.1+ also copies the tool title into `annotations`. |
+
+`php artisan beacon:health` prints this same result. `--json` uses this schema. Exit `0` means the report was printed, including when a check is critical.
+
+```dotenv
+BEACON_ALLOWED_CAPABILITIES=health
+```
+
+Disable the inspector to remove the tool from `tools/list`:
+
+```php
+'inspectors' => [
+    'health' => ['enabled' => false],
+],
+```
+
+#### Statuses
+
+| Status     | Meaning                                                                 |
+| ---------- | ----------------------------------------------------------------------- |
+| `healthy`  | The check completed and passed.                                         |
+| `warning`  | The check completed and found a degraded condition.                     |
+| `critical` | The check completed and found a confirmed failure.                      |
+| `unknown`  | The check could not determine health.                                   |
+| `skipped`  | The check was disabled or has no safe probe.                            |
+
+`warning` is degraded. `critical` is unhealthy. Unknown and skipped checks are not counted as healthy.
+
+The report status is the worst completed result: `critical`, then `warning`, then `unknown`. A report with no checks is `unknown`. If at least one check passed and none are critical, warning, or unknown, the report is `healthy`. Skipped checks stay in `counts` and do not downgrade that result. A report whose checks were all skipped is `skipped`.
+
+#### Checks
+
+Checks run in this order. A failure in one does not remove the others. Each result includes `duration_ms` when the runner measured it.
+
+| Check         | When it runs                                      | What a pass means                                                                 |
+| ------------- | ------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `application` | Always                                            | This process has a booted Laravel application and readable version metadata, and it is not in maintenance. Maintenance is `warning`. |
+| `database`    | `BEACON_HEALTH_DATABASE=true`                     | The default connection answered `select 1`.                                       |
+| `cache`       | `BEACON_HEALTH_CACHE=true` and the driver can be read without a write | The default store answered a read of one fixed key. The value is discarded. |
+| `queue`       | `BEACON_HEALTH_QUEUE=true`                        | Never a pass. A recognised driver is `unknown` because Beacon does not dispatch a job. |
+
+Database, cache, and queue probes are off by default. They run only when a health report is requested, not on a normal HTTP request. An MCP client cannot turn them on or change the timeout.
+
+The database timeout is `BEACON_HEALTH_DATABASE_TIMEOUT`, an integer from 1 to 5 seconds. The default is 2. MySQL, MariaDB, PostgreSQL, and SQL Server receive it as a PDO timeout on a short-lived connection that is not the application's default connection. SQLite does not receive that attribute. An invalid timeout does not run the probe and the check is `unknown`. A dotted connection name is not followed.
+
+Cache reads are limited to `apc`, `array`, `database`, `file`, `memcached`, `redis`, and `storage`. The `null` driver, and drivers with no safe read (`dynamodb`, `failover`, `octane`, `session`, and anything else), are `skipped`. The check does not put, increment, forget, or flush.
+
+#### Response
+
+```json
+{
+    "schema_version": 1,
+    "status": "healthy",
+    "summary": "Every completed health check passed.",
+    "assessed_at": "2026-10-25T13:33:00+00:00",
+    "counts": {"total": 4, "healthy": 1, "warning": 0, "critical": 0, "unknown": 0, "skipped": 3},
+    "checks": []
+}
+```
+
+`assessed_at` is UTC. Evidence observations are classifications such as `enabled` or `disabled`. They are not configuration values. A healthy check has `remediation: null`. Every other status includes short remediation. Summaries cannot carry URLs, paths, or driver errors.
+
+#### Errors
+
+| Situation                                                          | What the client receives                                                                 |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Missing or wrong bearer token                                      | HTTP 401, before the tool runs                                                           |
+| Caller lacks `health`                                              | JSON-RPC error `-32001`, "Permission denied."                                            |
+| Authorization denied at the tool itself                            | Tool result with `isError: true` and "Permission denied."                                |
+| Any argument                                                       | Tool result with `isError: true` and "Health inspection does not accept arguments."      |
+| Inspector disabled                                                 | The tool is not listed; calling it returns "Tool not found"                              |
+| Inspection fails unexpectedly                                      | Tool result with `isError: true` and "Health inspection is currently unavailable."       |
+
+A check that throws stays in the report as `unknown` with a fixed summary. The exception message is not returned or logged by Beacon. A database or cache probe that was attempted and failed is `critical`, still without the driver error.
+
+#### What this does not verify
+
+- Environment findings and configuration findings. Those stay on their own tools.
+- Database schema, migrations, credentials, or query performance.
+- That a queue worker is running, or the size of a backlog.
+- Mail delivery, HTTP dependencies, or disk capacity.
+- Custom cache or queue drivers, beyond classifying a queue driver as unknown.
+
+#### Limitations
+
+- **Probes are opt-in.** A default report can be `healthy` while the database, cache, and queue were skipped. Read `counts.skipped`.
+- **Queue health is not worker health.** Enabling the queue check does not make it `healthy`.
+- **A missing PHP database driver fails the probe.** When the database probe is enabled and PHP cannot load the driver, the check is `critical`.
+- **SQLite files are not created.** A missing sqlite file is `unknown`. An existing file is opened read-only when PHP provides that flag. `:memory:` is probed in memory.
+- **The timeout is a connection hint.** Drivers that honour `PDO::ATTR_TIMEOUT` are bounded by the configured seconds. A refused local port usually returns sooner. SQLite ignores that attribute.
+- **The serving process.** Over stdio, the report describes the CLI process. Its configuration can differ from PHP-FPM.
 - **Audit events.** A successful call is authorized twice, by the MCP execution gate and again when the inspector runs, so two `AuthorizationEvaluated` events are dispatched per call.
 
 ## Architecture
@@ -971,14 +1086,14 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
 | `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config), `Version` (installed version)                |
-| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `ConfigurationInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
-| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, `ConfigurationInspector`, and the environment, route, and configuration analyzers with their checks |
+| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `ConfigurationInspection`, `HealthInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
+| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, `ConfigurationInspector`, `HealthInspector`, and the environment, route, and configuration analyzers with their checks |
 | `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `UrlSanitizer`, `BearerTokenAuthenticator`, `Principal` |
 | `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
-| `Beacon\Health`     | `HealthStatus`                                                                                                                                      |
-| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, `Tools\GetApplicationInfoTool`, `Tools\GetEnvironmentTool`, `Tools\GetRoutesTool`, `Tools\GetConfigTool`. The only namespace that depends on `laravel/mcp`. |
+| `Beacon\Health`     | `HealthStatus`, `HealthRunner`, `HealthChecks`, and the application, database, cache, and queue checks. Database and cache probes are separate from the checks. |
+| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, `Tools\GetApplicationInfoTool`, `Tools\GetEnvironmentTool`, `Tools\GetRoutesTool`, `Tools\GetConfigTool`, `Tools\GetHealthTool`. The only namespace that depends on `laravel/mcp`. |
 | `Beacon\Diagnostics` | `Diagnostics` (the `beacon:check` checks), `DiagnosticReport`, `CheckResult`, `DiagnosticStatus`. Uses `laravel/mcp` only when it is installed. |
-| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:install` and `beacon:check`                                                         |
+| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:health`, `beacon:install` and `beacon:check`                                       |
 
 Inspectors know nothing about MCP. Consumers call `Beacon::inspect()`, which authorizes the inspector's capability, runs it and returns a `Payload`. A `Payload` can only be built from `Data` and is always normalized and redacted, so a secret copied into a DTO by mistake is still removed before output.
 
@@ -990,7 +1105,7 @@ The built-in pattern, which every Beacon inspector follows, is:
 2. It returns a typed DTO (`Beacon\Data\ApplicationInfo`) that holds only scalars, so nothing else can be serialized.
 3. A thin MCP tool (`Beacon\Mcp\Tools\GetApplicationInfoTool`) declares the capability, calls `Beacon::inspect()` with the caller's `Principal`, and returns the redacted payload as structured content.
 
-Environment inspection adds a step between 1 and 3: `EnvironmentInspector` collects `EnvironmentFacts`, and `EnvironmentAnalyzer` turns those facts into findings. Route inspection does the same with a `RouteCatalog` and `RouteAnalyzer`, after validating literal filters. Configuration inspection collects a `ConfigurationCatalog` through an explicit field allowlist and evaluates it with `ConfigurationAnalyzer`. Checks never read Laravel themselves. The tool still only calls `Beacon::inspect()`.
+Environment inspection adds a step between 1 and 3: `EnvironmentInspector` collects `EnvironmentFacts`, and `EnvironmentAnalyzer` turns those facts into findings. Route inspection does the same with a `RouteCatalog` and `RouteAnalyzer`, after validating literal filters. Configuration inspection collects a `ConfigurationCatalog` through an explicit field allowlist and evaluates it with `ConfigurationAnalyzer`. Those checks never read Laravel themselves. Health inspection is a list of `HealthCheck` objects run by `HealthRunner`. A new health check is added to that list. The report shape and the MCP tool do not change. The tool still only calls `Beacon::inspect()`.
 
 Applications and packages can add their own inspectors the same way. Register a read capability for them, since only registered capabilities can be allowed:
 
