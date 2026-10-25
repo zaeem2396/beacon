@@ -21,7 +21,7 @@ final class ProtocolTest extends McpTestCase
      * Literal names: constant expressions are evaluated while PHPUnit builds
      * the suite, where tool classes cannot load without laravel/mcp.
      */
-    private const BUILT_IN_TOOLS = ['beacon.get_application_info', 'beacon.get_environment', 'beacon.get_routes'];
+    private const BUILT_IN_TOOLS = ['beacon.get_application_info', 'beacon.get_environment', 'beacon.get_routes', 'beacon.get_config'];
 
     #[Test]
     #[DefineEnvironment('enableMcp')]

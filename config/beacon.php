@@ -134,6 +134,8 @@ return [
         'routes' => ['enabled' => true],
         'config' => [
             'enabled' => true,
+            // Documented interest only. Configuration inspection uses a code allowlist
+            // and does not treat this list as paths a caller may request.
             'namespaces' => [
                 'app',
                 'cache',
