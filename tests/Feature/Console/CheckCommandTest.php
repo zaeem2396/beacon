@@ -61,7 +61,7 @@ final class CheckCommandTest extends TestCase
         [, $report] = $this->check();
 
         $this->assertSame('pass', $this->statusOf($report, 'inspectors'));
-        $this->assertSame('Enabled: application, environment, routes, config.', $this->messageOf($report, 'inspectors'));
+        $this->assertSame('Enabled: application, environment, routes, config, health.', $this->messageOf($report, 'inspectors'));
     }
 
     #[Test]
@@ -71,6 +71,7 @@ final class CheckCommandTest extends TestCase
         config()->set('beacon.inspectors.environment.enabled', false);
         config()->set('beacon.inspectors.routes.enabled', false);
         config()->set('beacon.inspectors.config.enabled', false);
+        config()->set('beacon.inspectors.health.enabled', false);
 
         [$exitCode, $report] = $this->check();
 

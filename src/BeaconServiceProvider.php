@@ -7,6 +7,7 @@ namespace Beacon;
 use Beacon\Console\Commands\ApplicationCommand;
 use Beacon\Console\Commands\BeaconCommand;
 use Beacon\Console\Commands\CheckCommand;
+use Beacon\Console\Commands\HealthCommand;
 use Beacon\Console\Commands\InstallCommand;
 use Beacon\Contracts\Authenticator;
 use Beacon\Contracts\Authorizer;
@@ -14,9 +15,16 @@ use Beacon\Contracts\Redactor;
 use Beacon\Core\Beacon;
 use Beacon\Core\BeaconConfig;
 use Beacon\Core\InspectorRegistry;
+use Beacon\Health\CacheProbe;
+use Beacon\Health\Clock;
+use Beacon\Health\DatabaseProbe;
+use Beacon\Health\LaravelCacheProbe;
+use Beacon\Health\LaravelDatabaseProbe;
+use Beacon\Health\SystemClock;
 use Beacon\Inspectors\ApplicationInspector;
 use Beacon\Inspectors\ConfigurationInspector;
 use Beacon\Inspectors\EnvironmentInspector;
+use Beacon\Inspectors\HealthInspector;
 use Beacon\Inspectors\RouteInspector;
 use Beacon\Mcp\BeaconMcpServiceProvider;
 use Beacon\Security\BearerTokenAuthenticator;
@@ -52,12 +60,16 @@ final class BeaconServiceProvider extends ServiceProvider
         $this->app->singleton(Authenticator::class, BearerTokenAuthenticator::class);
         $this->app->singleton(InspectorRegistry::class);
         $this->app->singleton(Beacon::class);
+        $this->app->singleton(Clock::class, SystemClock::class);
+        $this->app->singleton(DatabaseProbe::class, LaravelDatabaseProbe::class);
+        $this->app->singleton(CacheProbe::class, LaravelCacheProbe::class);
 
         $this->callAfterResolving(InspectorRegistry::class, static function (InspectorRegistry $inspectors): void {
             $inspectors->register(ApplicationInspector::NAME, ApplicationInspector::class);
             $inspectors->register(EnvironmentInspector::NAME, EnvironmentInspector::class);
             $inspectors->register(RouteInspector::NAME, RouteInspector::class);
             $inspectors->register(ConfigurationInspector::NAME, ConfigurationInspector::class);
+            $inspectors->register(HealthInspector::NAME, HealthInspector::class);
         });
 
         $this->app->register(BeaconMcpServiceProvider::class);
@@ -73,6 +85,7 @@ final class BeaconServiceProvider extends ServiceProvider
             $this->commands([
                 BeaconCommand::class,
                 ApplicationCommand::class,
+                HealthCommand::class,
                 CheckCommand::class,
                 InstallCommand::class,
             ]);

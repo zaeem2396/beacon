@@ -147,6 +147,40 @@ final class BeaconConfig
         return $this->stringList('beacon.redaction.additional_keys');
     }
 
+    public function healthDatabaseEnabled(): bool
+    {
+        return $this->bool('beacon.health.database.enabled', false);
+    }
+
+    /**
+     * Seconds for the database probe, from 1 to 5. Null when the configured
+     * value is present and not in that range. A missing value uses 2.
+     */
+    public function healthDatabaseTimeout(): ?int
+    {
+        $value = $this->config->get('beacon.health.database.timeout_seconds', 2);
+
+        if (is_int($value) && $value >= 1 && $value <= 5) {
+            return $value;
+        }
+
+        if (is_string($value) && preg_match('/^[1-5]$/', $value) === 1) {
+            return (int) $value;
+        }
+
+        return null;
+    }
+
+    public function healthCacheEnabled(): bool
+    {
+        return $this->bool('beacon.health.cache.enabled', false);
+    }
+
+    public function healthQueueEnabled(): bool
+    {
+        return $this->bool('beacon.health.queue.enabled', false);
+    }
+
     public function inspectorEnabled(string $name): bool
     {
         return $this->bool("beacon.inspectors.{$name}.enabled", true);
