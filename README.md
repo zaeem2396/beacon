@@ -1,13 +1,16 @@
 # Laravel Beacon
 
-Laravel Beacon exposes safe, structured production information about a Laravel application to AI agents (Claude, Cursor and other MCP clients) so they can investigate production problems using real application evidence.
+Laravel Beacon gives AI agents safe, structured information about a Laravel application over MCP.
 
-> **Status:** early development (v0.1). The package foundation, the MCP server foundation, MCP authentication, the read-only security model and the CLI foundation are in place. Application information is available through [`beacon:application`](#beaconapplication) and [`beacon.get_application_info`](#beaconget_application_info). Environment inspection is available through [`beacon.get_environment`](#beaconget_environment). Route inspection is available through [`beacon.get_routes`](#beaconget_routes). Configuration inspection is available through [`beacon.get_config`](#beaconget_config). Health inspection is available through [`beacon:health`](#beaconhealth) and [`beacon.get_health`](#beaconget_health). Database intelligence is next. See [ROADMAP.md](ROADMAP.md).
+> **Status:** v0.1.0 is the initial public release, [Laravel Application Intelligence](CHANGELOG.md). It is early development. It inspects application metadata, environment, routes, an allowlisted configuration, and health. It is not a monitoring product and it does not find root causes. Database intelligence is next. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
-- PHP 8.2+
-- Laravel 11, 12 or 13
+- PHP 8.2 or newer with Laravel 11 or 12
+- PHP 8.3 or newer with Laravel 13. Laravel 13 does not run on PHP 8.2
+- For the MCP server, `laravel/mcp` ^1.0, which requires Laravel 11.45.3+, 12.41.1+, or 13
+
+Beacon itself can be installed without `laravel/mcp`. The Artisan commands still work. The MCP server is registered only when that package is installed and MCP is explicitly enabled.
 
 ## Installation
 
@@ -92,9 +95,9 @@ php artisan beacon:install
     BEACON_MCP_ENABLED=true
     BEACON_MCP_TOKEN=<random token of at least 32 characters>
     BEACON_MCP_ENVIRONMENTS=local
-    BEACON_ALLOWED_CAPABILITIES=<capabilities to allow, e.g. application,routes>
+    BEACON_ALLOWED_CAPABILITIES=<capabilities to allow, e.g. application,routes,health>
 
-  Inspect this application with php artisan beacon:application after allowing the application capability.
+  Inspect this application with php artisan beacon:application or php artisan beacon:health after allowing those capabilities.
   Then run php artisan beacon:check to verify your setup.
 ```
 
@@ -234,7 +237,7 @@ Beacon's MCP server is built on Laravel's official [`laravel/mcp`](https://githu
 composer require laravel/mcp
 ```
 
-`laravel/mcp` ^1.0 supports PHP 8.2+ with Laravel 11.45+, 12.41+ and 13. Without it, Beacon works normally and the MCP server is simply not registered.
+`laravel/mcp` ^1.0 supports PHP 8.2+ with Laravel 11.45.3+, 12.41.1+, and 13. Laravel 13 still needs PHP 8.3+. Without `laravel/mcp`, Beacon works normally and the MCP server is simply not registered.
 
 ### Enabling the server
 
@@ -287,6 +290,8 @@ For example, in Cursor's `.cursor/mcp.json`:
     }
 }
 ```
+
+Start that command in the application root, where `artisan` is. The client does not send `BEACON_MCP_TOKEN`, but the server is still not registered until that token is set and the other MCP access conditions pass. The server handle is `beacon`.
 
 If MCP is disabled or not configured, `mcp:start beacon` fails with "MCP Server with name [beacon] not found", and starting the server class directly throws `McpUnavailableException`.
 
@@ -555,6 +560,8 @@ Every field is always present, in this order. `null` means **unknown**: the valu
 | `laravel_version`  | string           | `app()->version()`                        | never                                                            |
 | `php_version`      | string           | `PHP_VERSION` of the serving process      | never                                                            |
 | `beacon_version`   | string or null   | Composer's installed-package metadata     | Beacon's version cannot be determined                            |
+
+`beacon_version` is Composer's pretty version for `zaeem2396/beacon`. The example `v0.1.0` is what an install of that tag reports. A branch install reports the branch, such as `dev-main`.
 
 The schema is versioned by `schema_version`. Fields may be added within schema 1, but existing fields will not be removed or change meaning.
 

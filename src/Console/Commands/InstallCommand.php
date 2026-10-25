@@ -49,7 +49,7 @@ final class InstallCommand extends Command
         $this->line('    BEACON_MCP_ENABLED=true');
         $this->line('    BEACON_MCP_TOKEN=' . OutputFormatter::escape('<random token of at least 32 characters>'));
         $this->line('    BEACON_MCP_ENVIRONMENTS=local');
-        $this->line('    BEACON_ALLOWED_CAPABILITIES=' . OutputFormatter::escape('<capabilities to allow, e.g. application,routes>'));
+        $this->line('    BEACON_ALLOWED_CAPABILITIES=' . OutputFormatter::escape('<capabilities to allow, e.g. application,routes,health>'));
         $this->newLine();
         $this->line('  Generate a token (keep it out of version control):');
         $this->newLine();
@@ -62,7 +62,7 @@ final class InstallCommand extends Command
         }
 
         $this->line('  Remote (HTTP) access is a separate opt-in; see the README before enabling it.');
-        $this->line('  Inspect this application with <fg=green>php artisan beacon:application</> after allowing the application capability.');
+        $this->line('  Inspect this application with <fg=green>php artisan beacon:application</> or <fg=green>php artisan beacon:health</> after allowing those capabilities.');
         $this->line('  Then run <fg=green>php artisan beacon:check</> to verify your setup.');
         $this->newLine();
 
