@@ -276,7 +276,7 @@ Never:
 
 # 8. MCP Tools
 
-Application information, environment inspection, route inspection and configuration inspection are implemented. The other tools in this section are the later read-only plan (database, migrations, exceptions, and queues). Do not implement them until their roadmap version.
+Application information, environment inspection, route inspection, configuration inspection, and health inspection are implemented. The other tools in this section are the later read-only plan (database, migrations, exceptions, and queues). Do not implement them until their roadmap version.
 
 ## `beacon.get_application_info`
 
@@ -372,7 +372,36 @@ Findings:
 * `session_driver` fails when the driver is missing or not recognised.
 * `session_secure_cookie` fails only when the environment is exactly `production`, the application URL scheme is `https`, and the Secure flag is false. A missing flag in that context is `risk`. Otherwise the check is `pass` or `unknown`. It does not replace the broader environment-inspection cookie checks.
 
-Do not connect to a database, cache, queue, or mail server, and do not mutate configuration. Adding a field requires a reviewed change to the code allowlist, not a configuration change.
+Do not connect to a database, cache, queue, or mail server, and do not mutate configuration. Adding a field requires a reviewed change to the code allowlist, not a configuration change. Reachability belongs to `beacon.get_health`, and only when that probe is enabled.
+
+---
+
+## `beacon.get_health`
+
+Implemented. Also available locally as `php artisan beacon:health` (`--json` uses the same schema). Requires the `health` capability. Takes no arguments. A caller cannot enable a probe, choose checks, or change a timeout.
+
+Return one report: `schema_version`, `status`, `summary`, `assessed_at`, `counts`, and `checks`. Each check has a stable name, description, status, summary, duration in milliseconds, remediation, and evidence. Evidence is a classified observation, never a copied configuration value, exception message, or connection string.
+
+Statuses:
+
+* `healthy`: the check completed and passed.
+* `warning`: the check completed and the application or dependency is functioning with a meaningful limitation. This is the degraded status.
+* `critical`: the check completed and found a confirmed failure. This is the unhealthy status.
+* `unknown`: the check could not reliably determine health.
+* `skipped`: the check was intentionally not executed or has no safe probe.
+
+Aggregation, in order: any `critical` makes the report `critical`; otherwise any `warning` makes it `warning`; otherwise any `unknown`, or a report with no checks, makes it `unknown`; otherwise any `healthy` makes it `healthy`. Skipped checks are not passes and do not downgrade a healthy report. They stay visible in `counts`. A report whose checks were all skipped is `skipped`. An empty report is `unknown`.
+
+Checks, in order:
+
+* `application` always runs. It confirms this process has a booted Laravel application and readable version metadata. Maintenance mode is `warning`. It does not repeat environment or configuration findings.
+* `database` runs `select 1` on the default connection only when `BEACON_HEALTH_DATABASE` is true. The timeout is `BEACON_HEALTH_DATABASE_TIMEOUT`, an integer from 1 to 5 seconds, default 2. MySQL, MariaDB, PostgreSQL, and SQL Server receive that timeout as a PDO attribute. A missing sqlite file is `unknown` and is not created. An existing sqlite file is opened read-only when PHP provides that flag. `:memory:` is probed in memory. An invalid timeout does not run the probe. A connection failure is `critical` and does not include the driver error or credentials.
+* `cache` reads one fixed key and discards the value only when `BEACON_HEALTH_CACHE` is true and the driver is `apc`, `array`, `database`, `file`, `memcached`, `redis`, or `storage`. The null driver and drivers without a safe read, including `dynamodb`, `failover`, `octane`, and `session`, are `skipped`. The check does not put, increment, forget, or flush.
+* `queue` classifies the default driver only when `BEACON_HEALTH_QUEUE` is true. It never dispatches or consumes a job, so a configured driver is `unknown`, not `healthy`.
+
+Probes are off by default and run only when a health report is requested. They do not run on a normal HTTP request. One failed check does not drop the others. Do not migrate, write, send mail, enqueue, clear cache, or make a network call except the enabled database or cache probe. Configuration warnings stay on `beacon.get_config` and `beacon.get_environment`.
+
+`beacon:health` exits `0` when the report was printed, including when the status is `critical`. The status is in the output. Exit `1` is denied. Exit `2` means the report could not be collected.
 
 ---
 
@@ -495,6 +524,7 @@ beacon.get_application_info
 beacon.get_environment
 beacon.get_routes
 beacon.get_config
+beacon.get_health
 beacon.get_database_status
 beacon.get_database_schema
 beacon.get_pending_migrations
@@ -682,31 +712,14 @@ Initial commands:
 ```bash
 php artisan beacon
 php artisan beacon:application
+php artisan beacon:health
 php artisan beacon:install
 php artisan beacon:check
 ```
 
-`beacon:application` prints the same metadata as `beacon.get_application_info`. `beacon:check` currently reports Beacon's own configuration and security posture. The later health report should produce both:
+`beacon:application` prints the same metadata as `beacon.get_application_info`. `beacon:health` prints the same report as `beacon.get_health`, in human-readable form and as `--json`. Exit `0` means the report was printed. The health status is a field in that report, including when a check is critical.
 
-human-readable output:
-
-```text
-Laravel Beacon
-
-Application       ✓
-Configuration     ⚠
-Database          ✓
-Queue             ✓
-Migrations        ⚠
-
-Risk: MEDIUM
-```
-
-and machine-readable output:
-
-```bash
-php artisan beacon:check --json
-```
+`beacon:check` reports Beacon's own configuration and security posture. It is not the application health report, and `beacon:check --json` keeps the diagnostics schema.
 
 ---
 

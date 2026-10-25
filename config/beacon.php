@@ -120,6 +120,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Health probes
+    |--------------------------------------------------------------------------
+    |
+    | Dependency probes are off by default. They run only when a health report
+    | is requested and the probe is enabled. They do not run on a normal HTTP
+    | request. Database timeout is seconds, from 1 to 5.
+    |
+    */
+
+    'health' => [
+        'database' => [
+            'enabled' => env('BEACON_HEALTH_DATABASE', false),
+            'timeout_seconds' => env('BEACON_HEALTH_DATABASE_TIMEOUT', 2),
+        ],
+        'cache' => [
+            'enabled' => env('BEACON_HEALTH_CACHE', false),
+        ],
+        'queue' => [
+            'enabled' => env('BEACON_HEALTH_QUEUE', false),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Inspectors
     |--------------------------------------------------------------------------
     |
@@ -151,6 +175,7 @@ return [
         'migrations' => ['enabled' => true],
         'exceptions' => ['enabled' => true],
         'queue' => ['enabled' => true],
+        'health' => ['enabled' => true],
     ],
 
 ];

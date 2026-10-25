@@ -40,18 +40,25 @@ final class DataObjectTest extends TestCase
     #[Test]
     public function it_serializes_enums_and_nested_data(): void
     {
-        $result = new HealthCheckResult('database', HealthStatus::Warning, 'Slow connection', [
-            'latency_ms' => 812.5,
-            'value' => new SafeValue('DB_HOST', true, false, '127.0.0.1'),
-        ]);
+        $result = new HealthCheckResult(
+            'database',
+            'A read-only connectivity probe of the default database connection, when enabled.',
+            HealthStatus::Warning,
+            'The database probe is slow.',
+            12,
+            'Check the default database.',
+            [new \Beacon\Data\FindingEvidence('database.probe', \Beacon\Data\Observation::Enabled)],
+        );
 
         $this->assertSame([
             'name' => 'database',
+            'description' => 'A read-only connectivity probe of the default database connection, when enabled.',
             'status' => 'warning',
-            'summary' => 'Slow connection',
-            'details' => [
-                'latency_ms' => 812.5,
-                'value' => ['name' => 'DB_HOST', 'present' => true, 'sensitive' => false, 'value' => '127.0.0.1'],
+            'summary' => 'The database probe is slow.',
+            'duration_ms' => 12,
+            'remediation' => 'Check the default database.',
+            'evidence' => [
+                ['name' => 'database.probe', 'observation' => 'enabled'],
             ],
         ], $result->toArray());
     }

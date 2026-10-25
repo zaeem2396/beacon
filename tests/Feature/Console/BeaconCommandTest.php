@@ -20,6 +20,7 @@ final class BeaconCommandTest extends TestCase
         $this->assertArrayHasKey('beacon:application', $commands);
         $this->assertArrayHasKey('beacon:install', $commands);
         $this->assertArrayHasKey('beacon:check', $commands);
+        $this->assertArrayHasKey('beacon:health', $commands);
     }
 
     #[Test]
@@ -33,6 +34,7 @@ final class BeaconCommandTest extends TestCase
         $this->assertStringContainsString('beacon:application', $output);
         $this->assertStringContainsString('beacon:install', $output);
         $this->assertStringContainsString('beacon:check', $output);
+        $this->assertStringContainsString('beacon:health', $output);
     }
 
     #[Test]
@@ -55,7 +57,7 @@ final class BeaconCommandTest extends TestCase
     #[Test]
     public function every_command_provides_help(): void
     {
-        foreach (['beacon', 'beacon:application', 'beacon:install', 'beacon:check'] as $command) {
+        foreach (['beacon', 'beacon:application', 'beacon:install', 'beacon:check', 'beacon:health'] as $command) {
             $this->assertSame(0, Artisan::call('help', ['command_name' => $command]));
             $this->assertStringContainsString('Help:', Artisan::output(), $command);
         }

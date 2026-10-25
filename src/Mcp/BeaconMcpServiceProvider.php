@@ -7,6 +7,7 @@ namespace Beacon\Mcp;
 use Beacon\Mcp\Tools\GetApplicationInfoTool;
 use Beacon\Mcp\Tools\GetConfigTool;
 use Beacon\Mcp\Tools\GetEnvironmentTool;
+use Beacon\Mcp\Tools\GetHealthTool;
 use Beacon\Mcp\Tools\GetRoutesTool;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Server\Tool;
@@ -30,6 +31,7 @@ final class BeaconMcpServiceProvider extends ServiceProvider
                 $registry->tool(GetEnvironmentTool::class);
                 $registry->tool(GetRoutesTool::class);
                 $registry->tool(GetConfigTool::class);
+                $registry->tool(GetHealthTool::class);
             }
         });
     }
