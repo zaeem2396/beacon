@@ -75,7 +75,7 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 
 | Module                  | Prompt                                                                                                                                                                                               | Status |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Database status         | Expose database connection health, driver, version and connection metadata without exposing credentials. Support MySQL/MariaDB first.                                                                | 🔴     |
+| Database status         | Expose database connection health, driver, version and connection metadata without exposing credentials. Support MySQL/MariaDB first.                                                                | 🟢 Done |
 | Schema inspection       | Allow AI to inspect tables, columns, indexes, constraints and relationships in a structured format. Avoid loading unnecessarily large datasets.                                                      | 🔴     |
 | Migration inspection    | Expose pending/applied migrations and migration history to the AI.                                                                                                                                   | 🔴     |
 | Migration risk analysis | Analyze Laravel migrations for potentially dangerous operations such as destructive column changes, large table modifications, unsafe indexes and locking risks. Return a risk level with reasoning. | 🔴     |
