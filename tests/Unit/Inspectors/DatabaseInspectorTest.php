@@ -115,6 +115,23 @@ final class DatabaseInspectorTest extends TestCase
     }
 
     #[Test]
+    public function a_missing_timeout_uses_two_seconds(): void
+    {
+        $probe = new RecordingStatusProbe();
+        $repository = $this->repository([
+            'database' => [
+                'default' => 'mysql',
+                'connections' => ['mysql' => ['driver' => 'mysql']],
+            ],
+        ]);
+
+        $status = (new DatabaseInspector($this->config($repository), $repository, $probe))->inspect();
+
+        $this->assertSame(ConnectionStatus::Connected, $status->status);
+        $this->assertSame(2, $probe->timeout);
+    }
+
+    #[Test]
     public function an_invalid_timeout_does_not_open_the_connection(): void
     {
         $probe = new RecordingStatusProbe();
@@ -124,6 +141,17 @@ final class DatabaseInspectorTest extends TestCase
         ]);
 
         $status = (new DatabaseInspector($this->config($repository), $repository, $probe))->inspect();
+
+        $this->assertSame(ConnectionStatus::Unknown, $status->status);
+        $this->assertSame(0, $probe->calls);
+
+        $fractional = $this->repository([
+            'beacon' => ['database' => ['timeout_seconds' => '2.5']],
+            'database' => ['default' => 'mysql', 'connections' => ['mysql' => ['driver' => 'mysql']]],
+        ]);
+        $probe = new RecordingStatusProbe();
+
+        $status = (new DatabaseInspector($this->config($fractional), $fractional, $probe))->inspect();
 
         $this->assertSame(ConnectionStatus::Unknown, $status->status);
         $this->assertSame(0, $probe->calls);

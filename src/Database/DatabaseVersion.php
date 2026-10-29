@@ -11,6 +11,14 @@ final class DatabaseVersion
 {
     public static function sanitize(string $raw): ?string
     {
+        if (strlen($raw) > 128) {
+            return null;
+        }
+
+        if (stripos($raw, 'mariadb') !== false && preg_match('/(\d+\.\d+\.\d+)-MariaDB/i', $raw, $matches) === 1) {
+            return $matches[1] . '-MariaDB';
+        }
+
         if (preg_match('/^(\d+\.\d+\.\d+)/', $raw, $matches) !== 1) {
             return null;
         }

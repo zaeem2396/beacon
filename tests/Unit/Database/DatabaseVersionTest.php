@@ -28,9 +28,11 @@ final class DatabaseVersionTest extends TestCase
             'mysql packaging' => ['8.0.36-0ubuntu0.22.04.1', '8.0.36'],
             'mariadb' => ['10.11.6-MariaDB', '10.11.6-MariaDB'],
             'mariadb packaging' => ['10.11.6-MariaDB-1:10.11.6+maria~ubu2204', '10.11.6-MariaDB'],
+            'mariadb compatibility prefix' => ['5.5.5-10.11.6-MariaDB-1:10.11.6+maria~ubu2204', '10.11.6-MariaDB'],
             'sqlite' => ['3.45.1', '3.45.1'],
             'address' => ['mysql://beacon:database-password-not-in-output@db.internal/app', null],
             'empty' => ['', null],
+            'too long' => [str_repeat('8.0.36-', 20), null],
         ];
     }
 }
