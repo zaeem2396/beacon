@@ -158,17 +158,16 @@ final class BeaconConfig
      */
     public function healthDatabaseTimeout(): ?int
     {
-        $value = $this->config->get('beacon.health.database.timeout_seconds', 2);
+        return $this->boundedTimeout('beacon.health.database.timeout_seconds');
+    }
 
-        if (is_int($value) && $value >= 1 && $value <= 5) {
-            return $value;
-        }
-
-        if (is_string($value) && preg_match('/^[1-5]$/', $value) === 1) {
-            return (int) $value;
-        }
-
-        return null;
+    /**
+     * Seconds for the database status probe, from 1 to 5. Null when the
+     * configured value is present and not in that range. A missing value uses 2.
+     */
+    public function databaseTimeout(): ?int
+    {
+        return $this->boundedTimeout('beacon.database.timeout_seconds');
     }
 
     public function healthCacheEnabled(): bool
@@ -206,6 +205,21 @@ final class BeaconConfig
         }
 
         return $result;
+    }
+
+    private function boundedTimeout(string $key): ?int
+    {
+        $value = $this->config->get($key, 2);
+
+        if (is_int($value) && $value >= 1 && $value <= 5) {
+            return $value;
+        }
+
+        if (is_string($value) && preg_match('/^[1-5]$/', $value) === 1) {
+            return (int) $value;
+        }
+
+        return null;
     }
 
     private function string(string $key): ?string

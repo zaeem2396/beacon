@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `beacon.get_database_status` and `php artisan beacon:database` report the default connection. MySQL, MariaDB, and SQLite are probed. PostgreSQL and SQL Server are identified and not opened. Credentials, hosts, and schema are not returned. Schema inspection is still later.
+
 ## v0.1.0 — 2026-10-25
 
 Initial public release. This version is Laravel Application Intelligence: read-only application metadata for AI agents over MCP, plus a local CLI. It is early development. It is not a monitoring product and it does not diagnose incidents by itself.

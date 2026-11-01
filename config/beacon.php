@@ -120,6 +120,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Database status
+    |--------------------------------------------------------------------------
+    |
+    | Used only when database status is requested. The timeout is seconds,
+    | from 1 to 5. Callers cannot change it. This does not enable the health
+    | database probe.
+    |
+    */
+
+    'database' => [
+        'timeout_seconds' => env('BEACON_DATABASE_TIMEOUT', 2),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Health probes
     |--------------------------------------------------------------------------
     |

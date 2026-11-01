@@ -276,7 +276,7 @@ Never:
 
 # 8. MCP Tools
 
-Application information, environment inspection, route inspection, configuration inspection, and health inspection are implemented. The other tools in this section are the later read-only plan (database, migrations, exceptions, and queues). Do not implement them until their roadmap version.
+Application information, environment inspection, route inspection, configuration inspection, health inspection, and database status are implemented. The other tools in this section are the later read-only plan (schema, migrations, exceptions, and queues). Do not implement them until their roadmap version.
 
 ## `beacon.get_application_info`
 
@@ -407,15 +407,23 @@ Probes are off by default and run only when a health report is requested. They d
 
 ## `beacon.get_database_status`
 
+Implemented. Also available locally as `php artisan beacon:database` (`--json` uses the same schema). Requires the `database` capability. Takes no arguments. A caller cannot choose a connection, a timeout, or SQL.
+
 Return:
 
-* configured driver
-* connection status
-* database version where available
-* latency
-* connection name
+* schema version
+* connection name (the Laravel connection key, not a host or database name)
+* configured driver, when it is one of `mariadb`, `mysql`, `pgsql`, `sqlite`, `sqlsrv`
+* status: `connected`, `unavailable`, `unknown`, or `unsupported`
+* short server version where a probe completed and the version text was readable (`8.0.36`, `10.11.6-MariaDB`), otherwise null
+* latency in milliseconds when the probe completed, otherwise null
+* a fixed summary
 
-Never expose credentials.
+MySQL, MariaDB, and SQLite are probed with `select 1` and a version statement. PostgreSQL and SQL Server are `unsupported` and are not opened. A missing sqlite file is `unknown` and is not created. The timeout is `BEACON_DATABASE_TIMEOUT`, an integer from 1 to 5 seconds, default 2. An invalid timeout does not connect. This is separate from the optional health database probe.
+
+Exit `0` for `beacon:database` means the report was printed. The status is in the output. Exit `1` is denied. Exit `2` means the report could not be collected.
+
+Never expose credentials, hosts, ports, database names, connection strings, or driver errors.
 
 ---
 
