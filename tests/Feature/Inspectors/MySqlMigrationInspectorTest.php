@@ -252,10 +252,10 @@ final class MySqlMigrationInspectorTest extends TestCase
     {
         $statement = $pdo->query($sql);
         $this->assertInstanceOf(\PDOStatement::class, $statement);
-        $rows = $statement->fetchAll(\PDO::FETCH_NUM);
-        $this->assertIsArray($rows);
+        $encoded = json_encode($statement->fetchAll(\PDO::FETCH_NUM));
+        $this->assertIsString($encoded);
 
-        return (string) json_encode($rows);
+        return $encoded;
     }
 
     /**
