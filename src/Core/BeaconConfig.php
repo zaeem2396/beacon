@@ -218,6 +218,25 @@ final class BeaconConfig
         return $this->stringList('beacon.migrations.connections');
     }
 
+    /**
+     * Seconds for the migration-risk repository read, from 1 to 5.
+     * Null when the configured value is present and not in that range.
+     */
+    public function migrationRiskTimeout(): ?int
+    {
+        return $this->boundedTimeout('beacon.migration_risk.timeout_seconds');
+    }
+
+    /**
+     * Connection names that may be analyzed in addition to the default.
+     *
+     * @return list<string>
+     */
+    public function migrationRiskConnections(): array
+    {
+        return $this->stringList('beacon.migration_risk.connections');
+    }
+
     public function healthCacheEnabled(): bool
     {
         return $this->bool('beacon.health.cache.enabled', false);

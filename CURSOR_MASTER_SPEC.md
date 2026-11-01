@@ -483,6 +483,26 @@ Do not return file contents, credentials, hosts, or absolute paths. Do not run m
 
 ---
 
+## `beacon.analyze_migration_risks`
+
+Implemented. Also available locally as `php artisan beacon:migration-risks` (`--json` uses the same schema). Requires the `migration_risk` capability. The `migrations`, `database`, and `schema` capabilities do not grant it.
+
+The analyzer reuses migration discovery and repository status. It reads migration files as text and parses them with `nikic/php-parser` 5. It does not `include` the file, instantiate the class, call `up()` or `down()`, or execute SQL. `up` and `down` are recognized separately. Comments, strings, and other methods are not treated as operations.
+
+Pending migrations are the default. `include_executed` adds recorded migrations. `migration` is an exact name. `path` must be a registered relative directory. `category` and `severity` filter findings. `severity` is a minimum rank. `page` defaults to 1. `limit` defaults to 100 and cannot exceed 100.
+
+Schema metadata is used only when the `schema` capability is also allowed. It can show that a table exists and can attach an `information_schema` row estimate. It does not read rows and it does not run `COUNT(*)`. Source analysis still runs when schema access is unavailable.
+
+Every finding has a stable rule id from `MIG001` through `MIG022`, a category, a severity (`critical`, `high`, `medium`, `low`, `informational`), and a confidence (`high`, `medium`, `low`). Severity is the impact if the operation runs. Confidence is how sure the analyzer is that it recognized the operation. Evidence includes the migration name, relative path, line range, operation, a short reconstructed snippet, the reason, the conditions that would change the risk, and a mitigation.
+
+A file that cannot be parsed, is too large, or contains `include` or `eval` produces a limitation. It is not treated as safe. Dynamic SQL returns: "Unable to statically determine the impact of this dynamically constructed SQL statement. Manual review is required."
+
+This is heuristic static analysis. It does not guarantee success, failure, lock duration, data loss, or downtime. It does not compare the schema with migration expectations, repair migrations, or run them.
+
+Exit `0` for `beacon:migration-risks` means the report was printed. Exit `1` is denied or an invalid filter. Exit `2` means the report could not be collected.
+
+---
+
 ## `beacon.get_recent_exceptions`
 
 Return sanitized recent application errors.
@@ -557,6 +577,7 @@ beacon.get_health
 beacon.get_database_status
 beacon.get_database_schema
 beacon.get_migrations
+beacon.analyze_migration_risks
 beacon.get_recent_exceptions
 beacon.get_failed_jobs
 beacon.get_queue_status

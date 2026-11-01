@@ -10,6 +10,7 @@ use Beacon\Console\Commands\CheckCommand;
 use Beacon\Console\Commands\DatabaseCommand;
 use Beacon\Console\Commands\HealthCommand;
 use Beacon\Console\Commands\InstallCommand;
+use Beacon\Console\Commands\MigrationRisksCommand;
 use Beacon\Console\Commands\MigrationsCommand;
 use Beacon\Console\Commands\SchemaCommand;
 use Beacon\Contracts\Authenticator;
@@ -32,6 +33,7 @@ use Beacon\Inspectors\DatabaseInspector;
 use Beacon\Inspectors\EnvironmentInspector;
 use Beacon\Inspectors\HealthInspector;
 use Beacon\Inspectors\MigrationInspector;
+use Beacon\Inspectors\MigrationRiskInspector;
 use Beacon\Inspectors\RouteInspector;
 use Beacon\Inspectors\SchemaInspector;
 use Beacon\Mcp\BeaconMcpServiceProvider;
@@ -91,6 +93,7 @@ final class BeaconServiceProvider extends ServiceProvider
             $inspectors->register(DatabaseInspector::NAME, DatabaseInspector::class);
             $inspectors->register(SchemaInspector::NAME, SchemaInspector::class);
             $inspectors->register(MigrationInspector::NAME, MigrationInspector::class);
+            $inspectors->register(MigrationRiskInspector::NAME, MigrationRiskInspector::class);
         });
 
         $this->app->register(BeaconMcpServiceProvider::class);
@@ -110,6 +113,7 @@ final class BeaconServiceProvider extends ServiceProvider
                 DatabaseCommand::class,
                 SchemaCommand::class,
                 MigrationsCommand::class,
+                MigrationRisksCommand::class,
                 CheckCommand::class,
                 InstallCommand::class,
             ]);

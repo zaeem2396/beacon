@@ -58,8 +58,9 @@ final class GetApplicationInfoTool extends Tool implements RequiresCapability
         beacon.get_routes for registered routes, beacon.get_config for approved
         configuration metadata, beacon.get_health for the health report, and
         beacon.get_database_status for the default database connection,
-        beacon.get_database_schema for schema metadata, and beacon.get_migrations
-        for migration history. Queue and error inspection are separate tools when
+        beacon.get_database_schema for schema metadata, beacon.get_migrations
+        for migration history, and beacon.analyze_migration_risks for static
+        migration risk findings. Queue and error inspection are separate tools when
         they are available.
 
         php_version describes the process serving this MCP connection. Over stdio that is the
