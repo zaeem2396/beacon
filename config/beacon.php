@@ -83,7 +83,7 @@ return [
     | registered capability.
     |
     | Available: application, environment, routes, config, database, schema,
-    | migrations, migration_risk, exceptions, queue, health. Unregistered names are ignored.
+    | migrations, migration_risk, schema_snapshot, schema_compare, exceptions, queue, health. Unregistered names are ignored.
     | Beacon v0.x is read-only: mutating capabilities are always denied and
     | cannot be enabled here.
     |
@@ -254,6 +254,8 @@ return [
         'schema' => ['enabled' => true],
         'migrations' => ['enabled' => true],
         'migration_risk' => ['enabled' => true],
+        'schema_snapshot' => ['enabled' => true],
+        'schema_compare' => ['enabled' => true],
         'exceptions' => ['enabled' => true],
         'queue' => ['enabled' => true],
         'health' => ['enabled' => true],

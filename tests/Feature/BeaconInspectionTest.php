@@ -45,7 +45,7 @@ final class BeaconInspectionTest extends TestCase
 
         $this->assertTrue($this->registry()->has('leaky'));
         $this->assertFalse($this->registry()->enabled('leaky'));
-        $this->assertSame(['application', 'environment', 'routes', 'config', 'health', 'database', 'schema', 'migrations', 'migration_risk'], $this->registry()->names());
+        $this->assertSame(['application', 'environment', 'routes', 'config', 'health', 'database', 'schema', 'migrations', 'migration_risk', 'schema_snapshot', 'schema_compare'], $this->registry()->names());
     }
 
     #[Test]
