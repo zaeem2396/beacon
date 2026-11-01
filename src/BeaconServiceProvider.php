@@ -10,6 +10,7 @@ use Beacon\Console\Commands\CheckCommand;
 use Beacon\Console\Commands\DatabaseCommand;
 use Beacon\Console\Commands\HealthCommand;
 use Beacon\Console\Commands\InstallCommand;
+use Beacon\Console\Commands\MigrationsCommand;
 use Beacon\Console\Commands\SchemaCommand;
 use Beacon\Contracts\Authenticator;
 use Beacon\Contracts\Authorizer;
@@ -108,6 +109,7 @@ final class BeaconServiceProvider extends ServiceProvider
                 HealthCommand::class,
                 DatabaseCommand::class,
                 SchemaCommand::class,
+                MigrationsCommand::class,
                 CheckCommand::class,
                 InstallCommand::class,
             ]);

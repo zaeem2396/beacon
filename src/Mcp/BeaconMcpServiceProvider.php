@@ -10,6 +10,7 @@ use Beacon\Mcp\Tools\GetDatabaseSchemaTool;
 use Beacon\Mcp\Tools\GetDatabaseStatusTool;
 use Beacon\Mcp\Tools\GetEnvironmentTool;
 use Beacon\Mcp\Tools\GetHealthTool;
+use Beacon\Mcp\Tools\GetMigrationsTool;
 use Beacon\Mcp\Tools\GetRoutesTool;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Server\Tool;
@@ -36,6 +37,7 @@ final class BeaconMcpServiceProvider extends ServiceProvider
                 $registry->tool(GetHealthTool::class);
                 $registry->tool(GetDatabaseStatusTool::class);
                 $registry->tool(GetDatabaseSchemaTool::class);
+                $registry->tool(GetMigrationsTool::class);
             }
         });
     }

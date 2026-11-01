@@ -14,9 +14,15 @@ final class RecordingMigrationHistory implements MigrationHistory
 {
     public int $calls = 0;
 
+    public bool $fail = false;
+
     public function read(array $config, int $timeoutSeconds, string $table): HistoryResult
     {
         $this->calls++;
+
+        if ($this->fail) {
+            throw new \RuntimeException('mysql://beacon:migration-password-not-in-output@db.internal/app');
+        }
 
         return new HistoryResult(true, true, [], false);
     }
