@@ -276,7 +276,7 @@ Never:
 
 # 8. MCP Tools
 
-Application information, environment inspection, route inspection, configuration inspection, health inspection, database status, and database schema inspection are implemented. The other tools in this section are the later read-only plan (migrations, exceptions, and queues). Do not implement them until their roadmap version.
+Application information, environment inspection, route inspection, configuration inspection, health inspection, database status, database schema inspection, and migration inspection are implemented. The other tools in this section are the later read-only plan (exceptions and queues). Do not implement them until their roadmap version.
 
 ## `beacon.get_application_info`
 
@@ -459,14 +459,27 @@ Do not return table data, credentials, hosts, view SQL, or generated expressions
 
 ---
 
-## `beacon.get_pending_migrations`
+## `beacon.get_migrations`
 
-Return:
+Implemented. Also available locally as `php artisan beacon:migrations` (`--json` uses the same schema). Requires the `migrations` capability. The `database` and `schema` capabilities do not grant it.
 
-* migration name
-* migration status
-* batch
-* timestamp where available
+Discovery uses Laravel's registered migration paths, including the default directory and paths added with `loadMigrationsFrom`. It lists `*_*.php` in each directory and does not open the files. The repository is Laravel's migration repository. `repositoryExists` and `getMigrationBatches` are the only repository calls. `createRepository` is never called.
+
+MySQL, MariaDB, and an existing SQLite file are read. PostgreSQL and SQL Server are recognised and not opened. A missing SQLite file is not created. The MySQL and MariaDB session is set read-only before the repository is read.
+
+Optional filters, all literal:
+
+* `connection`: Laravel connection name. Defaults to the application default. Additional names must be listed in `beacon.migrations.connections`.
+* `name`: substring of the migration name. Not a regular expression.
+* `status`: `executed`, `pending`, `missing_file`, `duplicate`, or `unknown`.
+* `batch`: integer from 1 to 1000000.
+* `path`: relative registered directory. Not an absolute path, and `..` is rejected.
+* `page`: integer from 1 to 10000, default 1.
+* `limit`: integer from 1 to 100, default 25.
+
+`executed` is one file with a repository row. `pending` is one file with no row, and it is not a failure. `missing_file` is a row with no file. `duplicate` means the name was found in more than one directory, and neither file is selected as the migration that ran. `unknown` means the repository was not read. `filename_at` comes from the filename. `modified_at` is the file modification time. The batch number is not an execution timestamp.
+
+Do not return file contents, credentials, hosts, or absolute paths. Do not run migrations or migration PHP. This tool does not analyze migration risk. Exit `0` for `beacon:migrations` means the report was printed. Exit `1` is denied or an invalid filter. Exit `2` means the report could not be collected.
 
 ---
 
@@ -543,7 +556,7 @@ beacon.get_config
 beacon.get_health
 beacon.get_database_status
 beacon.get_database_schema
-beacon.get_pending_migrations
+beacon.get_migrations
 beacon.get_recent_exceptions
 beacon.get_failed_jobs
 beacon.get_queue_status

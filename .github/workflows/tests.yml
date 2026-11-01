@@ -152,7 +152,7 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Run schema inspection tests
+      - name: Run MySQL and MariaDB inspection tests
         env:
           BEACON_MYSQL_HOST: 127.0.0.1
           BEACON_MYSQL_PORT: 3306

@@ -2,7 +2,7 @@
 
 Laravel Beacon gives AI agents safe, structured information about a Laravel application over MCP.
 
-> **Status:** v0.1.0 is the initial public release, [Laravel Application Intelligence](CHANGELOG.md). Database status and schema inspection are implemented and are not part of that tag. Migration inspection is next. It is early development. It inspects application metadata, environment, routes, an allowlisted configuration, health, the default database connection, and MySQL or MariaDB schema metadata. It is not a monitoring product and it does not find root causes. See [ROADMAP.md](ROADMAP.md).
+> **Status:** v0.1.0 is the initial public release, [Laravel Application Intelligence](CHANGELOG.md). Database status, schema inspection, and migration inspection are implemented and are not part of that tag. Migration risk analysis is next. It is early development. It inspects application metadata, environment, routes, an allowlisted configuration, health, the default database connection, MySQL or MariaDB schema metadata, and migration history. It is not a monitoring product and it does not find root causes. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -36,6 +36,7 @@ See [Artisan commands](#artisan-commands) for details.
 | `php artisan beacon:health`       | Read-only health report (`--json` for the MCP tool schema)               |
 | `php artisan beacon:database`     | Read-only status of the default database connection (`--json` for the MCP tool schema) |
 | `php artisan beacon:schema`       | Read-only MySQL or MariaDB schema metadata (`--json` for the MCP tool schema) |
+| `php artisan beacon:migrations`   | Read-only migration files and repository history (`--json` for the MCP tool schema) |
 | `php artisan beacon:install`      | Publish `config/beacon.php` and explain the remaining manual setup       |
 | `php artisan beacon:check`        | Diagnose the installation and configuration (`--json` for automation)    |
 
@@ -98,6 +99,19 @@ php artisan beacon:schema --table=orders --json
 Prints the same report as [`beacon.get_database_schema`](#beaconget_database_schema). It requires the `schema` capability. Allowing `database` does not allow this command. MySQL and MariaDB are inspected. Other drivers are identified and not opened.
 
 `--connection` selects an allowed Laravel connection name. The default connection is always allowed. Additional names must be listed in `beacon.schema.connections`. `--table` is an exact object name. `--no-views`, `--no-columns`, `--no-indexes`, and `--no-foreign-keys` omit those details. `--page` and `--limit` bound the page. The command does not accept SQL.
+
+Exit `0` means the report was printed. Exit `1` means Beacon or the capability does not allow the command, the inspector is disabled, or a filter is invalid. Exit `2` means the report could not be collected. A failure never includes the exception message, the rejected filter, or credentials.
+
+### `beacon:migrations`
+
+```bash
+php artisan beacon:migrations
+php artisan beacon:migrations --status=pending --json
+```
+
+Prints the same report as [`beacon.get_migrations`](#beaconget_migrations). It requires the `migrations` capability. Allowing `database` or `schema` does not allow this command. The command compares filenames with the migration repository. It does not run migrations or migration PHP.
+
+`--connection` selects an allowed Laravel connection name. `--status` is `executed`, `pending`, `missing_file`, `duplicate`, or `unknown`. `--batch` is a repository batch number. `--filter` is a literal substring of the migration name. `--path` is a relative registered directory such as `database/migrations`. `--page` and `--limit` bound the page.
 
 Exit `0` means the report was printed. Exit `1` means Beacon or the capability does not allow the command, the inspector is disabled, or a filter is invalid. Exit `2` means the report could not be collected. A failure never includes the exception message, the rejected filter, or credentials.
 
@@ -400,7 +414,7 @@ What an authenticated client may do is decided separately; see [Authorization an
 - **Tokens do not expire.** They stay valid until you rotate them.
 - **No built-in rate limiting.** A 32+ character random token cannot realistically be guessed, but you can add Laravel's `throttle` middleware in front of the endpoint if you need request limits.
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
-- **Seven tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment), [`beacon.get_routes`](#beaconget_routes), [`beacon.get_config`](#beaconget_config), [`beacon.get_health`](#beaconget_health), [`beacon.get_database_status`](#beaconget_database_status) and [`beacon.get_database_schema`](#beaconget_database_schema). Migration inspection and later tools follow the [roadmap](ROADMAP.md).
+- **Eight tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment), [`beacon.get_routes`](#beaconget_routes), [`beacon.get_config`](#beaconget_config), [`beacon.get_health`](#beaconget_health), [`beacon.get_database_status`](#beaconget_database_status), [`beacon.get_database_schema`](#beaconget_database_schema) and [`beacon.get_migrations`](#beaconget_migrations). Migration risk analysis and later tools follow the [roadmap](ROADMAP.md).
 
 ## Authorization and the read-only model
 
@@ -418,12 +432,12 @@ Every operation that exposes application information requires exactly one capabi
 | `config`      | Approved configuration metadata, without credentials or secrets |
 | `database`    | Database connection status, without credentials                |
 | `schema`      | Database schema metadata, without credentials or table contents |
-| `migrations`  | Migration status, history and risk analysis                   |
+| `migrations`  | Migration files and repository history, without executing migrations |
 | `exceptions`  | Recent exceptions in sanitized form                           |
 | `queue`       | Queue and failed-job metadata                                 |
 | `health`      | Application and infrastructure health results                 |
 
-`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. `schema` is used by [`beacon.get_database_schema`](#beaconget_database_schema). Allowing `database` does not allow schema inspection. `migrations`, `exceptions`, and `queue` define permissions for upcoming inspectors and grant nothing yet.
+`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. `schema` is used by [`beacon.get_database_schema`](#beaconget_database_schema). Allowing `database` does not allow schema inspection. `migrations` is used by [`beacon.get_migrations`](#beaconget_migrations). Allowing `database` or `schema` does not allow migration inspection. `exceptions` and `queue` define permissions for upcoming inspectors and grant nothing yet.
 
 ### Default deny
 
@@ -525,6 +539,7 @@ Every Beacon tool is read-only, requires exactly one capability, and runs only f
 | `beacon.get_health`           | `health`      | Read-only application, database, cache, and queue health, with optional dependency probes |
 | `beacon.get_database_status`  | `database`    | Read-only status of the default database connection, without credentials or schema |
 | `beacon.get_database_schema`  | `schema`      | Read-only MySQL and MariaDB schema metadata, without rows or credentials |
+| `beacon.get_migrations`       | `migrations`  | Read-only migration files and repository history, without running migrations |
 
 ### `beacon.get_application_info`
 
@@ -1309,6 +1324,75 @@ vendor/bin/phpunit --group mysql
 
 An optional CommerceOps check runs only when `BEACON_COMMERCEOPS_HOST` is set. It is not part of the default suite's required services and it does not change Beacon's inspector rules.
 
+### `beacon.get_migrations`
+
+Compares migration filenames with Laravel's migration repository. It reports which files have been recorded, which are pending, and which repository rows have no file. It does not decide whether a migration is dangerous or whether it will succeed.
+
+|                 |                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Capability      | `migrations` (`migrations:read`). `database` and `schema` do not grant this tool.       |
+| Inspector       | `migrations` (`Beacon\Inspectors\MigrationInspector`)                                   |
+| Parameters      | Optional literal filters. Any other argument is rejected and is not echoed.             |
+| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`.                   |
+
+`php artisan beacon:migrations` prints this same result. `--json` uses this schema. Exit `0` means the report was printed.
+
+```dotenv
+BEACON_ALLOWED_CAPABILITIES=migrations
+BEACON_MIGRATIONS_TIMEOUT=2
+BEACON_MIGRATIONS_CONNECTIONS=reporting
+```
+
+The default connection is always allowed when its name is a plain identifier. `BEACON_MIGRATIONS_CONNECTIONS` adds other Laravel connection names. The repository table comes from `database.migrations` or `database.migrations.table`. A missing table is reported and is not created.
+
+#### Filters
+
+| Filter | Default | Rule |
+| ------ | ------- | ---- |
+| `connection` | application default | Plain connection name on the allowlist |
+| `name` | all names | Literal substring. Not a regular expression |
+| `status` | all statuses | `executed`, `pending`, `missing_file`, `duplicate`, or `unknown` |
+| `batch` | all batches | Integer from 1 to 1000000 |
+| `path` | every registered directory | Relative path such as `database/migrations` |
+| `page` | 1 | Integer from 1 to 10000 |
+| `limit` | 25 | Integer from 1 to 100 |
+
+Discovery uses the directories Laravel already registered, including `database/migrations` and paths added with `loadMigrationsFrom`. It lists `*_*.php` in each directory and does not recurse. Counts follow the filters. Warnings describe the whole comparison.
+
+#### Statuses
+
+| Status | Meaning |
+| ------ | ------- |
+| `executed` | One file matches a repository row. `batch` is that row's batch. |
+| `pending` | One file has no repository row. This is not a failure. |
+| `missing_file` | A repository row has no file in the registered directories. |
+| `duplicate` | The same name exists in more than one directory. Neither file is chosen as the one that ran. |
+| `unknown` | The repository was not read, so the file is not called pending. |
+
+`filename_at` is parsed from the filename. `modified_at` is the file modification time. The repository stores a batch number, not an execution timestamp, so none of those fields is an execution time.
+
+#### Drivers
+
+MySQL, MariaDB, and SQLite are opened. PostgreSQL and SQL Server are `unsupported` and are not opened. A missing SQLite file is not created. An in-memory SQLite database opened for inspection is a new database, so it cannot see another connection's memory.
+
+#### What this does not do
+
+- Run `migrate`, `migrate:rollback`, `migrate:fresh`, `migrate:refresh`, `migrate:reset`, or `migrate:install`.
+- Include a migration file, construct its class, or call `up()` or `down()`.
+- Predict whether a pending migration will succeed.
+- Analyze migration risk or compare the schema with migration expectations.
+- Return file contents, credentials, hosts, or absolute paths.
+
+#### Limitations
+
+- **The search is one directory deep.** Nested folders are included only when Laravel registered them as their own path.
+- **Discovery stops at 2000 files.** The page holds at most 100 migrations.
+- **A duplicate name stays ambiguous.** The batch is shown on each file when a row exists, and the report does not pick a file.
+- **The timeout bounds connecting.** It does not bound the whole directory listing.
+- **Read-only is enforced on the inspection connection.** MySQL and MariaDB sessions are set read-only. SQLite files are opened read-only. Beacon does not create a separate database user.
+
+The MySQL and MariaDB integration tests use the same Docker services as schema inspection. `vendor/bin/phpunit --group mysql` runs both.
+
 ## Architecture
 
 Beacon keeps collecting information separate from exposing it:
@@ -1323,16 +1407,17 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
 | `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config), `Version` (installed version)                |
-| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `ConfigurationInspection`, `HealthInspection`, `DatabaseStatus`, `SchemaInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
+| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `ConfigurationInspection`, `HealthInspection`, `DatabaseStatus`, `SchemaInspection`, `MigrationInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
 | `Beacon\Database`   | `ConnectionStatus`, `DatabaseVersion`, and the read-only status probe. Separate from the optional health database probe. |
 | `Beacon\Schema`     | Schema query validation, MySQL and MariaDB `information_schema` reads, and metadata normalization. Statements are fixed and checked before they run. |
-| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, `ConfigurationInspector`, `HealthInspector`, `DatabaseInspector`, `SchemaInspector`, and the environment, route, and configuration analyzers with their checks |
+| `Beacon\Migrations` | Migration filename discovery, repository reads, and status classification. Files are not included or executed. |
+| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, `ConfigurationInspector`, `HealthInspector`, `DatabaseInspector`, `SchemaInspector`, `MigrationInspector`, and the environment, route, and configuration analyzers with their checks |
 | `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `UrlSanitizer`, `BearerTokenAuthenticator`, `Principal` |
 | `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
 | `Beacon\Health`     | `HealthStatus`, `HealthRunner`, `HealthChecks`, and the application, database, cache, and queue checks. Database and cache probes are separate from the checks. |
-| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, and the tool classes including `Tools\GetDatabaseSchemaTool`. The only namespace that depends on `laravel/mcp`. |
+| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, and the tool classes including `Tools\GetDatabaseSchemaTool` and `Tools\GetMigrationsTool`. The only namespace that depends on `laravel/mcp`. |
 | `Beacon\Diagnostics` | `Diagnostics` (the `beacon:check` checks), `DiagnosticReport`, `CheckResult`, `DiagnosticStatus`. Uses `laravel/mcp` only when it is installed. |
-| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:health`, `beacon:database`, `beacon:schema`, `beacon:install` and `beacon:check` |
+| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:health`, `beacon:database`, `beacon:schema`, `beacon:migrations`, `beacon:install` and `beacon:check` |
 
 Inspectors know nothing about MCP. Consumers call `Beacon::inspect()`, which authorizes the inspector's capability, runs it and returns a `Payload`. A `Payload` can only be built from `Data` and is always normalized and redacted, so a secret copied into a DTO by mistake is still removed before output.
 
