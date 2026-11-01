@@ -30,9 +30,14 @@ use Beacon\Inspectors\ConfigurationInspector;
 use Beacon\Inspectors\DatabaseInspector;
 use Beacon\Inspectors\EnvironmentInspector;
 use Beacon\Inspectors\HealthInspector;
+use Beacon\Inspectors\MigrationInspector;
 use Beacon\Inspectors\RouteInspector;
 use Beacon\Inspectors\SchemaInspector;
 use Beacon\Mcp\BeaconMcpServiceProvider;
+use Beacon\Migrations\MigrationFiles;
+use Beacon\Migrations\MigrationHistory;
+use Beacon\Migrations\MigrationScanner;
+use Beacon\Migrations\RepositoryHistory;
 use Beacon\Schema\InformationSchemaReader;
 use Beacon\Schema\SchemaReader;
 use Beacon\Security\BearerTokenAuthenticator;
@@ -73,6 +78,8 @@ final class BeaconServiceProvider extends ServiceProvider
         $this->app->singleton(CacheProbe::class, LaravelCacheProbe::class);
         $this->app->singleton(StatusProbe::class, LaravelStatusProbe::class);
         $this->app->singleton(SchemaReader::class, InformationSchemaReader::class);
+        $this->app->singleton(MigrationScanner::class, MigrationFiles::class);
+        $this->app->singleton(MigrationHistory::class, RepositoryHistory::class);
 
         $this->callAfterResolving(InspectorRegistry::class, static function (InspectorRegistry $inspectors): void {
             $inspectors->register(ApplicationInspector::NAME, ApplicationInspector::class);
@@ -82,6 +89,7 @@ final class BeaconServiceProvider extends ServiceProvider
             $inspectors->register(HealthInspector::NAME, HealthInspector::class);
             $inspectors->register(DatabaseInspector::NAME, DatabaseInspector::class);
             $inspectors->register(SchemaInspector::NAME, SchemaInspector::class);
+            $inspectors->register(MigrationInspector::NAME, MigrationInspector::class);
         });
 
         $this->app->register(BeaconMcpServiceProvider::class);

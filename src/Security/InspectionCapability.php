@@ -37,7 +37,7 @@ enum InspectionCapability: string
             self::Config => 'Approved configuration metadata, without credentials or secrets.',
             self::Database => 'Database connection status, without credentials.',
             self::Schema => 'Database schema metadata, without credentials or table contents.',
-            self::Migrations => 'Migration status, history and deterministic risk analysis.',
+            self::Migrations => 'Migration files and repository history, without executing migrations.',
             self::Exceptions => 'Recent exceptions in a sanitized, structured form.',
             self::Queue => 'Queue and failed-job metadata.',
             self::Health => 'Normalized application and infrastructure health results.',

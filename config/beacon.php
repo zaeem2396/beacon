@@ -82,7 +82,7 @@ return [
     | BEACON_ALLOWED_CAPABILITIES=application,routes, or use "*" for every
     | registered capability.
     |
-    | Available: application, environment, routes, config, database,
+    | Available: application, environment, routes, config, database, schema,
     | migrations, exceptions, queue, health. Unregistered names are ignored.
     | Beacon v0.x is read-only: mutating capabilities are always denied and
     | cannot be enabled here.
@@ -154,6 +154,25 @@ return [
         'exclude' => array_values(array_filter(array_map(
             static fn (string $name): string => trim($name),
             explode(',', (string) env('BEACON_SCHEMA_EXCLUDE', '')),
+        ), static fn (string $name): bool => $name !== '')),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Migration inspection
+    |--------------------------------------------------------------------------
+    |
+    | Used only when migration inspection is requested. The timeout is seconds,
+    | from 1 to 5. connections lists Laravel connection names in addition to
+    | the default. Callers cannot choose a filesystem path or run migrations.
+    |
+    */
+
+    'migrations' => [
+        'timeout_seconds' => env('BEACON_MIGRATIONS_TIMEOUT', 2),
+        'connections' => array_values(array_filter(array_map(
+            static fn (string $name): string => trim($name),
+            explode(',', (string) env('BEACON_MIGRATIONS_CONNECTIONS', '')),
         ), static fn (string $name): bool => $name !== '')),
     ],
 

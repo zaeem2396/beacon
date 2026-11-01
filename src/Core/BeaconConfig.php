@@ -199,6 +199,25 @@ final class BeaconConfig
         return $this->stringList('beacon.schema.exclude');
     }
 
+    /**
+     * Seconds for migration inspection, from 1 to 5. Null when the configured
+     * value is present and not in that range. A missing value uses 2.
+     */
+    public function migrationsTimeout(): ?int
+    {
+        return $this->boundedTimeout('beacon.migrations.timeout_seconds');
+    }
+
+    /**
+     * Connection names that may be inspected in addition to the default.
+     *
+     * @return list<string>
+     */
+    public function migrationsConnections(): array
+    {
+        return $this->stringList('beacon.migrations.connections');
+    }
+
     public function healthCacheEnabled(): bool
     {
         return $this->bool('beacon.health.cache.enabled', false);
