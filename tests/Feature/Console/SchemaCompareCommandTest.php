@@ -71,6 +71,15 @@ final class SchemaCompareCommandTest extends TestCase
 
             $this->assertSame(SchemaCompareCommand::EXIT_DENIED, $denied);
             $this->assertStringNotContainsString('.env', $deniedOutput);
+
+            $missing = Artisan::call('beacon:schema-compare', [
+                'baseline' => 'missing-snapshot.json',
+                'candidate' => 'baseline.json',
+            ]);
+            $missingOutput = Artisan::output();
+            $this->assertSame(SchemaCompareCommand::EXIT_DENIED, $missing);
+            $this->assertStringContainsString('was not found', $missingOutput);
+            $this->assertStringNotContainsString('missing-snapshot.json', $missingOutput);
             $this->assertSame(0, $exitCode);
             $this->assertIsArray($decoded);
             $summary = $decoded['summary'] ?? null;

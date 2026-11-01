@@ -45,4 +45,9 @@ final class InvalidSnapshotException extends \InvalidArgumentException implement
     {
         return new self('The snapshot directory is not available.');
     }
+
+    public static function missing(): self
+    {
+        return new self('The snapshot file was not found.');
+    }
 }

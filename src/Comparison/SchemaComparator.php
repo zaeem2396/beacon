@@ -89,7 +89,7 @@ final class SchemaComparator
                 $this->indexed($candidate->objects, ObjectType::View),
                 DifferenceCategory::View,
                 $presence,
-                false,
+                $detectRenames,
                 $columns,
                 false,
                 false,

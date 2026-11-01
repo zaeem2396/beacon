@@ -29,7 +29,13 @@ final class SnapshotFiles
         $path = $this->path($name, false);
 
         if (! is_file($path)) {
-            throw InvalidSnapshotException::unavailable();
+            throw InvalidSnapshotException::missing();
+        }
+
+        $size = filesize($path);
+
+        if ($size === false || $size > SnapshotLoader::MAX_BYTES) {
+            throw InvalidSnapshotException::tooLarge();
         }
 
         $contents = file_get_contents($path);
