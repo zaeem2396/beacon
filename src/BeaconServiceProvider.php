@@ -10,6 +10,7 @@ use Beacon\Console\Commands\CheckCommand;
 use Beacon\Console\Commands\DatabaseCommand;
 use Beacon\Console\Commands\HealthCommand;
 use Beacon\Console\Commands\InstallCommand;
+use Beacon\Console\Commands\SchemaCommand;
 use Beacon\Contracts\Authenticator;
 use Beacon\Contracts\Authorizer;
 use Beacon\Contracts\Redactor;
@@ -30,7 +31,10 @@ use Beacon\Inspectors\DatabaseInspector;
 use Beacon\Inspectors\EnvironmentInspector;
 use Beacon\Inspectors\HealthInspector;
 use Beacon\Inspectors\RouteInspector;
+use Beacon\Inspectors\SchemaInspector;
 use Beacon\Mcp\BeaconMcpServiceProvider;
+use Beacon\Schema\InformationSchemaReader;
+use Beacon\Schema\SchemaReader;
 use Beacon\Security\BearerTokenAuthenticator;
 use Beacon\Security\CapabilityAuthorizer;
 use Beacon\Security\CapabilityPolicy;
@@ -68,6 +72,7 @@ final class BeaconServiceProvider extends ServiceProvider
         $this->app->singleton(DatabaseProbe::class, LaravelDatabaseProbe::class);
         $this->app->singleton(CacheProbe::class, LaravelCacheProbe::class);
         $this->app->singleton(StatusProbe::class, LaravelStatusProbe::class);
+        $this->app->singleton(SchemaReader::class, InformationSchemaReader::class);
 
         $this->callAfterResolving(InspectorRegistry::class, static function (InspectorRegistry $inspectors): void {
             $inspectors->register(ApplicationInspector::NAME, ApplicationInspector::class);
@@ -76,6 +81,7 @@ final class BeaconServiceProvider extends ServiceProvider
             $inspectors->register(ConfigurationInspector::NAME, ConfigurationInspector::class);
             $inspectors->register(HealthInspector::NAME, HealthInspector::class);
             $inspectors->register(DatabaseInspector::NAME, DatabaseInspector::class);
+            $inspectors->register(SchemaInspector::NAME, SchemaInspector::class);
         });
 
         $this->app->register(BeaconMcpServiceProvider::class);
@@ -93,6 +99,7 @@ final class BeaconServiceProvider extends ServiceProvider
                 ApplicationCommand::class,
                 HealthCommand::class,
                 DatabaseCommand::class,
+                SchemaCommand::class,
                 CheckCommand::class,
                 InstallCommand::class,
             ]);

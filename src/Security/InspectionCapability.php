@@ -17,6 +17,7 @@ enum InspectionCapability: string
     case Routes = 'routes';
     case Config = 'config';
     case Database = 'database';
+    case Schema = 'schema';
     case Migrations = 'migrations';
     case Exceptions = 'exceptions';
     case Queue = 'queue';
@@ -34,7 +35,8 @@ enum InspectionCapability: string
             self::Environment => 'Environment metadata and unsafe-configuration findings, without secret values.',
             self::Routes => 'Registered routes, HTTP methods, middleware and route metadata.',
             self::Config => 'Approved configuration metadata, without credentials or secrets.',
-            self::Database => 'Database connection status and schema metadata, without credentials.',
+            self::Database => 'Database connection status, without credentials.',
+            self::Schema => 'Database schema metadata, without credentials or table contents.',
             self::Migrations => 'Migration status, history and deterministic risk analysis.',
             self::Exceptions => 'Recent exceptions in a sanitized, structured form.',
             self::Queue => 'Queue and failed-job metadata.',

@@ -276,7 +276,7 @@ Never:
 
 # 8. MCP Tools
 
-Application information, environment inspection, route inspection, configuration inspection, health inspection, and database status are implemented. The other tools in this section are the later read-only plan (schema, migrations, exceptions, and queues). Do not implement them until their roadmap version.
+Application information, environment inspection, route inspection, configuration inspection, health inspection, database status, and database schema inspection are implemented. The other tools in this section are the later read-only plan (migrations, exceptions, and queues). Do not implement them until their roadmap version.
 
 ## `beacon.get_application_info`
 
@@ -429,25 +429,33 @@ Never expose credentials, hosts, ports, database names, connection strings, or d
 
 ## `beacon.get_database_schema`
 
-Return structured schema information.
+Implemented. Also available locally as `php artisan beacon:schema` (`--json` uses the same schema). Requires the `schema` capability. The `database` capability does not grant it.
 
-Initial support:
+MySQL and MariaDB are inspected through `information_schema`. PostgreSQL, SQLite, and SQL Server are recognised and not opened. The session is set read-only before metadata is read. The connection is not the application's registered default connection.
 
-* MySQL
-* MariaDB
+Optional filters, all literal:
 
-Structure:
+* `connection`: Laravel connection name. Defaults to the application default. Additional names must be listed in `beacon.schema.connections`. Not a host, username, password, or DSN.
+* `table`: exact table or view name.
+* `include_views`, `include_columns`, `include_indexes`, `include_foreign_keys`: default true. Counts remain when details are omitted.
+* `page`: integer from 1 to 10000, default 1.
+* `limit`: integer from 1 to 50, default 25.
 
-```text
-database
-tables
-columns
-indexes
-foreign keys
-constraints
-```
+There is no SQL parameter. Discovery stops at 2000 tables and 2000 views. `beacon.schema.exclude` omits exact names or a prefix ending in `*`. The timeout is `BEACON_SCHEMA_TIMEOUT`, an integer from 1 to 5 seconds, default 2.
 
-Do not return table data.
+Return:
+
+* schema version
+* connection name, driver, plain database name, short server version, and status
+* summary counts, UTC `inspected_at`, and a fixed summary
+* pagination
+* one page of tables and views, tables first, then by name
+* for each object: type, metadata row estimate when the server provides one, column count, primary key columns, index count, foreign key count, columns, foreign keys, indexes, and unique constraints that are not the primary key
+* fixed warnings
+
+Column metadata includes type, nullability, a short literal default when it is safe, primary-key membership, auto-increment, generated stored or virtual without the expression, character length, decimal precision and scale, unsigned, json, boolean-like `tinyint(1)`, and position. Uniqueness comes from index metadata, not from the index name. A missing primary key is an empty list.
+
+Do not return table data, credentials, hosts, view SQL, or generated expressions. Exit `0` for `beacon:schema` means the report was printed. Exit `1` is denied or an invalid filter. Exit `2` means the report could not be collected.
 
 ---
 

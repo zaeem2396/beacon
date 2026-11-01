@@ -2,7 +2,7 @@
 
 Laravel Beacon gives AI agents safe, structured information about a Laravel application over MCP.
 
-> **Status:** v0.1.0 is the initial public release, [Laravel Application Intelligence](CHANGELOG.md). Database status is implemented and is not part of that tag. Schema inspection is next. It is early development. It inspects application metadata, environment, routes, an allowlisted configuration, health, and the default database connection. It is not a monitoring product and it does not find root causes. See [ROADMAP.md](ROADMAP.md).
+> **Status:** v0.1.0 is the initial public release, [Laravel Application Intelligence](CHANGELOG.md). Database status and schema inspection are implemented and are not part of that tag. Migration inspection is next. It is early development. It inspects application metadata, environment, routes, an allowlisted configuration, health, the default database connection, and MySQL or MariaDB schema metadata. It is not a monitoring product and it does not find root causes. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -35,6 +35,7 @@ See [Artisan commands](#artisan-commands) for details.
 | `php artisan beacon:application`  | Safe application and runtime metadata (`--json` for the MCP tool schema) |
 | `php artisan beacon:health`       | Read-only health report (`--json` for the MCP tool schema)               |
 | `php artisan beacon:database`     | Read-only status of the default database connection (`--json` for the MCP tool schema) |
+| `php artisan beacon:schema`       | Read-only MySQL or MariaDB schema metadata (`--json` for the MCP tool schema) |
 | `php artisan beacon:install`      | Publish `config/beacon.php` and explain the remaining manual setup       |
 | `php artisan beacon:check`        | Diagnose the installation and configuration (`--json` for automation)    |
 
@@ -86,6 +87,19 @@ php artisan beacon:database --json
 Prints the same report as [`beacon.get_database_status`](#beaconget_database_status). It requires the `database` capability. The command inspects the configured default connection only. It does not accept a connection name or SQL. MySQL, MariaDB, and SQLite are probed. PostgreSQL and SQL Server are identified and not opened.
 
 Exit `0` means the report was printed. The connection status is in the output, including when it is `unavailable`. Exit `1` means Beacon or the capability does not allow the command, or the inspector is disabled. Exit `2` means the report could not be collected. A failure never includes the exception message or credentials.
+
+### `beacon:schema`
+
+```bash
+php artisan beacon:schema
+php artisan beacon:schema --table=orders --json
+```
+
+Prints the same report as [`beacon.get_database_schema`](#beaconget_database_schema). It requires the `schema` capability. Allowing `database` does not allow this command. MySQL and MariaDB are inspected. Other drivers are identified and not opened.
+
+`--connection` selects an allowed Laravel connection name. The default connection is always allowed. Additional names must be listed in `beacon.schema.connections`. `--table` is an exact object name. `--no-views`, `--no-columns`, `--no-indexes`, and `--no-foreign-keys` omit those details. `--page` and `--limit` bound the page. The command does not accept SQL.
+
+Exit `0` means the report was printed. Exit `1` means Beacon or the capability does not allow the command, the inspector is disabled, or a filter is invalid. Exit `2` means the report could not be collected. A failure never includes the exception message, the rejected filter, or credentials.
 
 ### `beacon:install`
 
@@ -386,7 +400,7 @@ What an authenticated client may do is decided separately; see [Authorization an
 - **Tokens do not expire.** They stay valid until you rotate them.
 - **No built-in rate limiting.** A 32+ character random token cannot realistically be guessed, but you can add Laravel's `throttle` middleware in front of the endpoint if you need request limits.
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
-- **Six tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment), [`beacon.get_routes`](#beaconget_routes), [`beacon.get_config`](#beaconget_config), [`beacon.get_health`](#beaconget_health) and [`beacon.get_database_status`](#beaconget_database_status). Schema inspection and later tools follow the [roadmap](ROADMAP.md).
+- **Seven tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment), [`beacon.get_routes`](#beaconget_routes), [`beacon.get_config`](#beaconget_config), [`beacon.get_health`](#beaconget_health), [`beacon.get_database_status`](#beaconget_database_status) and [`beacon.get_database_schema`](#beaconget_database_schema). Migration inspection and later tools follow the [roadmap](ROADMAP.md).
 
 ## Authorization and the read-only model
 
@@ -402,13 +416,14 @@ Every operation that exposes application information requires exactly one capabi
 | `environment` | Environment metadata and deterministic configuration findings, without secret values |
 | `routes`      | Routes, HTTP methods, middleware and route metadata           |
 | `config`      | Approved configuration metadata, without credentials or secrets |
-| `database`    | Database status and schema metadata, without credentials      |
+| `database`    | Database connection status, without credentials                |
+| `schema`      | Database schema metadata, without credentials or table contents |
 | `migrations`  | Migration status, history and risk analysis                   |
 | `exceptions`  | Recent exceptions in sanitized form                           |
 | `queue`       | Queue and failed-job metadata                                 |
 | `health`      | Application and infrastructure health results                 |
 
-`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. Schema metadata is still a later inspector and is not returned by that tool. `migrations`, `exceptions`, and `queue` define permissions for upcoming inspectors and grant nothing yet.
+`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. `schema` is used by [`beacon.get_database_schema`](#beaconget_database_schema). Allowing `database` does not allow schema inspection. `migrations`, `exceptions`, and `queue` define permissions for upcoming inspectors and grant nothing yet.
 
 ### Default deny
 
@@ -509,6 +524,7 @@ Every Beacon tool is read-only, requires exactly one capability, and runs only f
 | `beacon.get_config`           | `config`      | Approved configuration metadata, literal filters, pagination, and deterministic configuration findings |
 | `beacon.get_health`           | `health`      | Read-only application, database, cache, and queue health, with optional dependency probes |
 | `beacon.get_database_status`  | `database`    | Read-only status of the default database connection, without credentials or schema |
+| `beacon.get_database_schema`  | `schema`      | Read-only MySQL and MariaDB schema metadata, without rows or credentials |
 
 ### `beacon.get_application_info`
 
@@ -1158,7 +1174,7 @@ A missing sqlite file is `unknown` and is not created. `:memory:` is probed in m
 
 #### What this does not verify
 
-- Schema, tables, indexes, or migrations.
+- Schema, tables, indexes, or migrations. Schema metadata is [`beacon.get_database_schema`](#beaconget_database_schema).
 - Credentials, hosts, ports, database names, or connection strings.
 - PostgreSQL or SQL Server reachability.
 - Query performance beyond one probe's latency.
@@ -1172,6 +1188,126 @@ A missing sqlite file is `unknown` and is not created. `:memory:` is probed in m
 - **The timeout is a connection hint.** Drivers that honour `PDO::ATTR_TIMEOUT` are bounded by the configured seconds.
 - **The serving process.** Over stdio, the report describes the CLI process.
 - **Audit events.** A successful call is authorized twice, by the MCP execution gate and again when the inspector runs, so two `AuthorizationEvaluated` events are dispatched per call.
+
+### `beacon.get_database_schema`
+
+Read-only schema metadata for an allowed MySQL or MariaDB connection. It does not return rows, and it does not repeat the database status probe.
+
+|                 |                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Capability      | `schema` (`schema:read`). The `database` capability does not grant this tool.           |
+| Inspector       | `schema` (`Beacon\Inspectors\SchemaInspector`)                                          |
+| Parameters      | Optional literal filters. Any other argument is rejected and is not echoed.             |
+| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`. laravel/mcp 1.1+ also copies the tool title into `annotations`. |
+
+`php artisan beacon:schema` prints this same result. `--json` uses this schema. Exit `0` means the report was printed.
+
+```dotenv
+BEACON_ALLOWED_CAPABILITIES=schema
+BEACON_SCHEMA_TIMEOUT=2
+BEACON_SCHEMA_CONNECTIONS=reporting
+BEACON_SCHEMA_EXCLUDE=password_resets,telescope_*
+```
+
+The default connection is always allowed when its name is a plain identifier. `BEACON_SCHEMA_CONNECTIONS` adds other Laravel connection names. It does not accept hosts or passwords. `BEACON_SCHEMA_EXCLUDE` lists exact table or view names, or a prefix ending in `*`. That star is not a regular expression.
+
+```php
+'schema' => [
+    'timeout_seconds' => 2,
+    'connections' => ['reporting'],
+    'exclude' => ['password_resets', 'telescope_*'],
+],
+```
+
+Disable the inspector to remove the tool from `tools/list`:
+
+```php
+'inspectors' => [
+    'schema' => ['enabled' => false],
+],
+```
+
+#### Filters
+
+| Filter | Default | Rule |
+| ------ | ------- | ---- |
+| `connection` | application default | Plain connection name on the allowlist |
+| `table` | all objects | Exact table or view name |
+| `include_views` | true | Omit views when false |
+| `include_columns` | true | Column details. Counts remain when false |
+| `include_indexes` | true | Indexes and unique constraints |
+| `include_foreign_keys` | true | Foreign keys |
+| `page` | 1 | Integer from 1 to 10000 |
+| `limit` | 25 | Integer from 1 to 50 |
+
+Objects are tables first, then views, each ordered by name. Discovery reads at most 2000 tables and 2000 views. Detail queries run only for the current page.
+
+#### Statuses
+
+| Status | Meaning |
+| ------ | ------- |
+| `connected` | Metadata was read. |
+| `unavailable` | The read was attempted and failed. The driver error is not included. |
+| `unknown` | Beacon could not safely decide, and did not open a connection. |
+| `unsupported` | The driver is PostgreSQL, SQLite, or SQL Server. This release does not open it. |
+
+#### Response
+
+`connection` contains the Laravel connection name, driver, a plain database name, a short server version, and status. `summary.table_count` and `summary.view_count` are the filtered totals before pagination. `summary.inspected_at` is UTC. `objects` is the page. `warnings` are fixed sentences.
+
+Each object has `type` (`table` or `view`), `row_estimate` when the server's metadata includes one, `estimated`, `column_count`, `primary_key`, `index_count`, `foreign_key_count`, `columns`, `foreign_keys`, `indexes`, and `unique_constraints`. A table without a primary key has an empty `primary_key`. A view has no row estimate. Unique constraints are the unique indexes that are not the primary key. `unique` is taken from the database, not from the index name.
+
+A column reports `type_name`, a short `column_type` when it contains no quoted literals, nullability, default, primary-key membership, auto-increment, generated stored or virtual, character length, decimal precision and scale, unsigned, json, boolean-like `tinyint(1)` or `bool`, and position. Sensitive defaults and expressions are withheld. The generated expression and view SQL are not returned.
+
+#### Errors
+
+| Situation | What the client receives |
+| --------- | ------------------------ |
+| Missing or wrong bearer token | HTTP 401, before the tool runs |
+| Caller lacks `schema` | JSON-RPC error `-32001`, "Permission denied." The database is not inspected. |
+| Any unknown or invalid argument | Tool result with `isError: true` and a fixed message that does not repeat the value |
+| Inspector disabled | The tool is not listed |
+| Inspection fails unexpectedly | Tool result with `isError: true` and "Schema inspection is currently unavailable." |
+
+#### What this does not verify
+
+- Table rows, query results, or `SELECT *`.
+- Migrations, migration risk, or schema comparison.
+- PostgreSQL, SQLite, or SQL Server metadata.
+- Credentials, hosts, ports, or connection URLs.
+- View definitions and generated-column expressions.
+
+#### Limitations
+
+- **MySQL and MariaDB only.** Other recognised drivers return `unsupported` and are not opened.
+- **Row counts are estimates.** InnoDB `table_rows` is not a `COUNT(*)`. Views omit it. A missing estimate stays null.
+- **The page is bounded.** `limit` cannot exceed 50. Discovery stops at 2000 tables and 2000 views.
+- **Names must be plain identifiers.** A name Beacon will not repeat is withheld, and a warning says so, without the name.
+- **Enum and set members are not returned.** The type name remains. The quoted member list is not copied.
+- **Functional index expressions are not returned.** The index is marked `expression` when a component is not a plain column.
+- **The timeout is a connection hint.** It bounds connecting, not the whole metadata read.
+- **Audit events.** A successful call is authorized twice.
+
+#### Running the database tests
+
+The default test suite skips the MySQL and MariaDB integration tests unless the environment is set. GitHub Actions runs them against MySQL 8.4 and MariaDB 11.4.
+
+```bash
+docker run -d --name beacon-mysql --rm \
+  -e MYSQL_ROOT_PASSWORD=ci-only -e MYSQL_DATABASE=beacon_schema \
+  -p 127.0.0.1:33062:3306 mysql:8.4
+docker run -d --name beacon-mariadb --rm \
+  -e MARIADB_ROOT_PASSWORD=ci-only -e MARIADB_DATABASE=beacon_schema \
+  -p 127.0.0.1:33063:3306 mariadb:11.4
+
+BEACON_MYSQL_HOST=127.0.0.1 BEACON_MYSQL_PORT=33062 \
+BEACON_MYSQL_USERNAME=root BEACON_MYSQL_PASSWORD=ci-only \
+BEACON_MARIADB_HOST=127.0.0.1 BEACON_MARIADB_PORT=33063 \
+BEACON_MARIADB_USERNAME=root BEACON_MARIADB_PASSWORD=ci-only \
+vendor/bin/phpunit --group mysql
+```
+
+An optional CommerceOps check runs only when `BEACON_COMMERCEOPS_HOST` is set. It is not part of the default suite's required services and it does not change Beacon's inspector rules.
 
 ## Architecture
 
@@ -1187,15 +1323,16 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
 | `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config), `Version` (installed version)                |
-| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `ConfigurationInspection`, `HealthInspection`, `DatabaseStatus`, `Finding`, `SafeValue`, `HealthCheckResult`) |
+| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `ConfigurationInspection`, `HealthInspection`, `DatabaseStatus`, `SchemaInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
 | `Beacon\Database`   | `ConnectionStatus`, `DatabaseVersion`, and the read-only status probe. Separate from the optional health database probe. |
-| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, `ConfigurationInspector`, `HealthInspector`, `DatabaseInspector`, and the environment, route, and configuration analyzers with their checks |
+| `Beacon\Schema`     | Schema query validation, MySQL and MariaDB `information_schema` reads, and metadata normalization. Statements are fixed and checked before they run. |
+| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, `ConfigurationInspector`, `HealthInspector`, `DatabaseInspector`, `SchemaInspector`, and the environment, route, and configuration analyzers with their checks |
 | `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `UrlSanitizer`, `BearerTokenAuthenticator`, `Principal` |
 | `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
 | `Beacon\Health`     | `HealthStatus`, `HealthRunner`, `HealthChecks`, and the application, database, cache, and queue checks. Database and cache probes are separate from the checks. |
-| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, `Tools\GetApplicationInfoTool`, `Tools\GetEnvironmentTool`, `Tools\GetRoutesTool`, `Tools\GetConfigTool`, `Tools\GetHealthTool`, `Tools\GetDatabaseStatusTool`. The only namespace that depends on `laravel/mcp`. |
+| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, and the tool classes including `Tools\GetDatabaseSchemaTool`. The only namespace that depends on `laravel/mcp`. |
 | `Beacon\Diagnostics` | `Diagnostics` (the `beacon:check` checks), `DiagnosticReport`, `CheckResult`, `DiagnosticStatus`. Uses `laravel/mcp` only when it is installed. |
-| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:health`, `beacon:database`, `beacon:install` and `beacon:check`                                       |
+| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:health`, `beacon:database`, `beacon:schema`, `beacon:install` and `beacon:check` |
 
 Inspectors know nothing about MCP. Consumers call `Beacon::inspect()`, which authorizes the inspector's capability, runs it and returns a `Payload`. A `Payload` can only be built from `Data` and is always normalized and redacted, so a secret copied into a DTO by mistake is still removed before output.
 
@@ -1257,6 +1394,7 @@ composer test         # PHPUnit
 composer analyse      # PHPStan (Larastan, level 9)
 composer format       # PHP-CS-Fixer
 composer pre-check    # format check + analyse + test
+vendor/bin/phpunit --group mysql   # requires MySQL 8.4 and MariaDB 11.4, see beacon.get_database_schema
 ```
 
 ## License
