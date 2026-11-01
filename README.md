@@ -2,7 +2,7 @@
 
 Laravel Beacon gives AI agents safe, structured information about a Laravel application over MCP.
 
-> **Status:** v0.1.0 is the initial public release, [Laravel Application Intelligence](CHANGELOG.md). Database status, schema inspection, and migration inspection are implemented and are not part of that tag. Migration risk analysis is next. It is early development. It inspects application metadata, environment, routes, an allowlisted configuration, health, the default database connection, MySQL or MariaDB schema metadata, and migration history. It is not a monitoring product and it does not find root causes. See [ROADMAP.md](ROADMAP.md).
+> **Status:** v0.1.0 is the initial public release, [Laravel Application Intelligence](CHANGELOG.md). Database status, schema inspection, migration inspection, and migration risk analysis are implemented and are not part of that tag. Schema comparison is next. It is early development. It inspects application metadata, environment, routes, an allowlisted configuration, health, the default database connection, MySQL or MariaDB schema metadata, migration history, and static migration risk. It is not a monitoring product and it does not find root causes. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -114,6 +114,21 @@ Prints the same report as [`beacon.get_migrations`](#beaconget_migrations). It r
 `--connection` selects an allowed Laravel connection name. `--status` is `executed`, `pending`, `missing_file`, `duplicate`, or `unknown`. `--batch` is a repository batch number. `--filter` is a literal substring of the migration name. `--path` is a relative registered directory such as `database/migrations`. `--page` and `--limit` bound the page.
 
 Exit `0` means the report was printed. Exit `1` means Beacon or the capability does not allow the command, the inspector is disabled, or a filter is invalid. Exit `2` means the report could not be collected. A failure never includes the exception message, the rejected filter, or credentials.
+
+### `beacon:migration-risks`
+
+```bash
+php artisan beacon:migration-risks
+php artisan beacon:migration-risks --severity=high --json
+```
+
+Prints the same report as [`beacon.analyze_migration_risks`](#beaconanalyze_migration_risks). It requires the `migration_risk` capability. Allowing `migrations`, `database`, or `schema` does not allow this command. The command parses migration source. It does not run migrations, include migration PHP, or execute SQL.
+
+Pending migrations are analyzed by default. `--include-executed` also analyzes migrations already recorded in the repository. `--migration` is one exact migration name. `--path` is a relative registered directory. `--category` and `--severity` filter findings. `--severity` is a minimum rank.
+
+Schema metadata is applied only when the `schema` capability is also allowed. It can show whether a table exists and can include an `information_schema` row estimate. It does not read table rows.
+
+Exit `0` means the report was printed. Exit `1` means Beacon or the capability does not allow the command, the inspector is disabled, or a filter is invalid. Exit `2` means the report could not be collected.
 
 ### `beacon:install`
 
@@ -414,7 +429,7 @@ What an authenticated client may do is decided separately; see [Authorization an
 - **Tokens do not expire.** They stay valid until you rotate them.
 - **No built-in rate limiting.** A 32+ character random token cannot realistically be guessed, but you can add Laravel's `throttle` middleware in front of the endpoint if you need request limits.
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
-- **Eight tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment), [`beacon.get_routes`](#beaconget_routes), [`beacon.get_config`](#beaconget_config), [`beacon.get_health`](#beaconget_health), [`beacon.get_database_status`](#beaconget_database_status), [`beacon.get_database_schema`](#beaconget_database_schema) and [`beacon.get_migrations`](#beaconget_migrations). Migration risk analysis and later tools follow the [roadmap](ROADMAP.md).
+- **Nine tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment), [`beacon.get_routes`](#beaconget_routes), [`beacon.get_config`](#beaconget_config), [`beacon.get_health`](#beaconget_health), [`beacon.get_database_status`](#beaconget_database_status), [`beacon.get_database_schema`](#beaconget_database_schema), [`beacon.get_migrations`](#beaconget_migrations) and [`beacon.analyze_migration_risks`](#beaconanalyze_migration_risks). Schema comparison and later tools follow the [roadmap](ROADMAP.md).
 
 ## Authorization and the read-only model
 
@@ -433,11 +448,12 @@ Every operation that exposes application information requires exactly one capabi
 | `database`    | Database connection status, without credentials                |
 | `schema`      | Database schema metadata, without credentials or table contents |
 | `migrations`  | Migration files and repository history, without executing migrations |
+| `migration_risk` | Static migration risk findings, without executing migrations |
 | `exceptions`  | Recent exceptions in sanitized form                           |
 | `queue`       | Queue and failed-job metadata                                 |
 | `health`      | Application and infrastructure health results                 |
 
-`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. `schema` is used by [`beacon.get_database_schema`](#beaconget_database_schema). Allowing `database` does not allow schema inspection. `migrations` is used by [`beacon.get_migrations`](#beaconget_migrations). Allowing `database` or `schema` does not allow migration inspection. `exceptions` and `queue` define permissions for upcoming inspectors and grant nothing yet.
+`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. `schema` is used by [`beacon.get_database_schema`](#beaconget_database_schema). Allowing `database` does not allow schema inspection. `migrations` is used by [`beacon.get_migrations`](#beaconget_migrations). Allowing `database` or `schema` does not allow migration inspection. `migration_risk` is used by [`beacon.analyze_migration_risks`](#beaconanalyze_migration_risks). Allowing `migrations`, `database`, or `schema` does not allow risk analysis. When `schema` is also allowed, risk analysis may use schema metadata to refine findings. `exceptions` and `queue` define permissions for upcoming inspectors and grant nothing yet.
 
 ### Default deny
 
@@ -540,6 +556,7 @@ Every Beacon tool is read-only, requires exactly one capability, and runs only f
 | `beacon.get_database_status`  | `database`    | Read-only status of the default database connection, without credentials or schema |
 | `beacon.get_database_schema`  | `schema`      | Read-only MySQL and MariaDB schema metadata, without rows or credentials |
 | `beacon.get_migrations`       | `migrations`  | Read-only migration files and repository history, without running migrations |
+| `beacon.analyze_migration_risks` | `migration_risk` | Static risk findings for migration source, without executing migrations |
 
 ### `beacon.get_application_info`
 
@@ -1380,7 +1397,7 @@ MySQL, MariaDB, and SQLite are opened. PostgreSQL and SQL Server are `unsupporte
 - Run `migrate`, `migrate:rollback`, `migrate:fresh`, `migrate:refresh`, `migrate:reset`, or `migrate:install`.
 - Include a migration file, construct its class, or call `up()` or `down()`.
 - Predict whether a pending migration will succeed.
-- Analyze migration risk or compare the schema with migration expectations.
+- Compare the schema with migration expectations. Risk findings are a separate tool.
 - Return file contents, credentials, hosts, or absolute paths.
 
 #### Limitations
@@ -1392,6 +1409,131 @@ MySQL, MariaDB, and SQLite are opened. PostgreSQL and SQL Server are `unsupporte
 - **Read-only is enforced on the inspection connection.** MySQL and MariaDB sessions are set read-only. SQLite files are opened read-only. Beacon does not create a separate database user.
 
 The MySQL and MariaDB integration tests use the same Docker services as schema inspection. `vendor/bin/phpunit --group mysql` runs both.
+
+### `beacon.analyze_migration_risks`
+
+Parses Laravel migration source and returns evidence-backed risk findings. It does not decide that a migration will succeed, fail, lock a table, or lose data. A finding is a heuristic. When the analyzer cannot tell what dynamic SQL does, it says so instead of treating the file as safe.
+
+|                 |                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Capability      | `migration_risk` (`migration_risk:read`). `migrations`, `database`, and `schema` do not grant this tool. |
+| Inspector       | `migration_risk` (`Beacon\Inspectors\MigrationRiskInspector`)                                   |
+| Parameters      | Optional literal filters. PHP, SQL, and absolute paths are rejected and are not echoed. |
+| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`.                   |
+
+`php artisan beacon:migration-risks` prints this same result. `--json` uses this schema. Exit `0` means the report was printed.
+
+```dotenv
+BEACON_ALLOWED_CAPABILITIES=migration_risk,schema
+BEACON_MIGRATION_RISK_TIMEOUT=2
+BEACON_MIGRATION_RISK_CONNECTIONS=reporting
+```
+
+`schema` is optional. When it is allowed, findings for an existing table can include an `information_schema` row estimate. The estimate is not a `COUNT(*)`. Table rows are not read. Without `schema`, the same source analysis still runs.
+
+The default set is pending migrations. `include_executed` adds migrations already recorded in the repository. An exact `migration` name is analyzed even when it has already run. Executed migrations are not treated as harmless. Duplicate names are included because Beacon does not choose which file ran. `unknown` files are skipped unless the caller names one, because pending status could not be proven.
+
+#### Filters
+
+| Filter | Default | Rule |
+| ------ | ------- | ---- |
+| `connection` | application default | Plain connection name on the allowlist |
+| `migration` | pending set | Exact migration name, not a substring or path |
+| `path` | every registered directory | Relative registered directory such as `database/migrations` |
+| `category` | every category | `data_loss`, `locking`, `compatibility`, `existing_data`, `performance`, `foreign_key`, or `transaction` |
+| `severity` | every severity | Minimum rank: `critical`, `high`, `medium`, `low`, or `informational` |
+| `pending` | true | Include pending migrations |
+| `include_executed` | false | Also include executed migrations |
+| `page` | 1 | Integer from 1 to 10000 |
+| `limit` | 100 | Integer from 1 to 100 |
+
+#### Rules
+
+| Rule | What it recognizes | Usual severity |
+| ---- | ------------------ | -------------- |
+| `MIG001` | `Schema::drop` or `Schema::dropIfExists` | Critical in `up`. Informational when `down` drops a table `up` created. |
+| `MIG002` | `$table->dropColumn()` | High on an existing table. Low inside `Schema::create`. |
+| `MIG003` | `truncate` | Critical |
+| `MIG004` | Non-nullable column without a default on `Schema::table` | High unless schema metadata shows the table is absent or the estimate is zero |
+| `MIG005` | Unique index or `unique()` | Medium on an existing table. Low on a new table. |
+| `MIG006` | Foreign key or `constrained()` | Medium on an existing table. Low on a new table. |
+| `MIG007` | `change()` or a generic `ALTER TABLE` | High on an existing table |
+| `MIG008` | `renameColumn` | High. Compatibility risk, not automatic data loss. |
+| `MIG009` | `Schema::rename` | High. Compatibility risk, not automatic data loss. |
+| `MIG010` | Index on an existing table | Low, or medium when the row estimate is at least 100000. Informational on a new table. |
+| `MIG011` | `dropIndex`, `dropUnique`, or `dropPrimary` | Medium |
+| `MIG012` | `change()` with a length or decimal precision | High. Confidence rises when schema metadata shows a real reduction. |
+| `MIG013` | `DB::table()->update()`, `get()`, `chunk()`, or `delete()` | High for an unbatched row read or delete. Medium for one set-based update. Low when `chunk` or `chunkById` is visible. |
+| `MIG014` | `cascadeOnDelete()` | High |
+| `MIG015` | Literal `DROP`, `TRUNCATE`, or `DELETE` SQL | Critical or high |
+| `MIG016` | SQL built from variables or concatenation | Medium, low confidence |
+| `MIG017` | Several existing-table schema changes, raw DDL, or a transaction around DDL | Informational, or medium when a transaction wraps schema changes |
+| `MIG018` | `up` has operations and `down` has none, or a destructive `up` has no restoring `down` | Medium |
+| `MIG019` | Schema changes and row changes in the same method | Medium |
+| `MIG020` | `change()` that tightens nullability, sets a default, or restricts an enum | High or medium |
+| `MIG021` | Literal SQL that matched no known shape | Medium, low confidence |
+| `MIG022` | `dropForeign` | Medium |
+
+Severity and confidence are different. `Schema::dropIfExists('orders')` in `up` is critical with high confidence. Dynamic SQL is medium with low confidence. An index inside `Schema::create` is informational, not the same risk as an index on a populated table.
+
+A finding includes the rule id, category, severity, confidence, title, explanation, migration name, relative path, `up` or `down`, line range when the parser has one, operation label, a short reconstructed snippet, why it is risky, what would raise or lower the risk, a mitigation, whether manual review is required, the migration status, and a row estimate only when schema metadata supplied one.
+
+Example shape, shortened:
+
+```json
+{
+  "rule_id": "MIG002",
+  "category": "data_loss",
+  "severity": "high",
+  "confidence": "high",
+  "title": "Dropping a column can discard stored values",
+  "migration": "2026_01_01_000000_drop_legacy_column",
+  "phase": "up",
+  "line": 12,
+  "manual_review": true,
+  "migration_status": "pending"
+}
+```
+
+An index declared while creating a table is informational:
+
+```json
+{
+  "rule_id": "MIG010",
+  "category": "locking",
+  "severity": "informational",
+  "confidence": "high",
+  "title": "An index on a newly created table is declared",
+  "manual_review": false
+}
+```
+
+#### Source analysis
+
+Beacon uses `nikic/php-parser` 5, which supports PHP 8.2. The parser is a production dependency because comments, strings, chained schema calls, and closures cannot be separated reliably with regular expressions. Parsing does not evaluate the file. If the parser class is missing, the report says the parser is unavailable and does not treat the migration as safe.
+
+Recognized schema calls include `Schema::create`, `Schema::table`, `Schema::drop`, `Schema::dropIfExists`, and `Schema::rename`, plus blueprint calls such as column types, `nullable`, `default`, `change`, `index`, `unique`, `foreign`, `foreignId`, `constrained`, `dropColumn`, `renameColumn`, `dropIndex`, and `cascadeOnDelete`. `up` and `down` are analyzed separately. A standard `down` that drops a table created in `up` is informational, not critical.
+
+Raw `DB::statement`, `DB::unprepared`, and literal `DB::select`, `DB::update`, and `DB::delete` strings are classified by their leading keywords. They are never executed. Unrecognized SQL and dynamic SQL produce an explicit review finding.
+
+#### What this does not guarantee
+
+- That a migration will succeed, fail, lock, or lose data.
+- Exact lock duration, downtime, or a count of affected rows.
+- That a branch which is not run will be skipped. Both sides of an `if` are analyzed, and the finding confidence is medium.
+- The behavior of code in another method, a comment, a string, a trait, or an included file. Includes and `eval` are not loaded. A trait is not expanded. The limitation says so.
+- PostgreSQL or SQL Server repository history. Those drivers are recognised and not opened. Source files can still be analyzed when a migration name is requested.
+- Schema comparison, migration repair, or migration execution.
+
+#### Limitations
+
+- **Files larger than 256 KiB are not parsed.** The limitation says the file was not treated as safe.
+- **Unparseable PHP is not safe.** A syntax error becomes a limitation, not an empty success.
+- **Discovery stops at 2000 files.** Finding output stops at 300 findings before pagination. The page holds at most 100 findings.
+- **Only `up` and `down` are analyzed.** A drop in another method is ignored.
+- **Dynamic table names and dynamic SQL stay uncertain.**
+- **Row estimates are metadata.** They are not used as proof that a unique index will fail.
+- **The timeout bounds the repository read.** It does not bound parsing.
 
 ## Architecture
 
@@ -1407,17 +1549,18 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
 | `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config), `Version` (installed version)                |
-| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `ConfigurationInspection`, `HealthInspection`, `DatabaseStatus`, `SchemaInspection`, `MigrationInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
+| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `ConfigurationInspection`, `HealthInspection`, `DatabaseStatus`, `SchemaInspection`, `MigrationInspection`, `MigrationRiskInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
 | `Beacon\Database`   | `ConnectionStatus`, `DatabaseVersion`, and the read-only status probe. Separate from the optional health database probe. |
 | `Beacon\Schema`     | Schema query validation, MySQL and MariaDB `information_schema` reads, and metadata normalization. Statements are fixed and checked before they run. |
 | `Beacon\Migrations` | Migration filename discovery, repository reads, and status classification. Files are not included or executed. |
-| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, `ConfigurationInspector`, `HealthInspector`, `DatabaseInspector`, `SchemaInspector`, `MigrationInspector`, and the environment, route, and configuration analyzers with their checks |
+| `Beacon\Risk`       | Static migration parsing, operation recognition, and deterministic risk rules. No AI provider and no SQL execution. |
+| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, `ConfigurationInspector`, `HealthInspector`, `DatabaseInspector`, `SchemaInspector`, `MigrationInspector`, `MigrationRiskInspector`, and the environment, route, and configuration analyzers with their checks |
 | `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `UrlSanitizer`, `BearerTokenAuthenticator`, `Principal` |
 | `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
 | `Beacon\Health`     | `HealthStatus`, `HealthRunner`, `HealthChecks`, and the application, database, cache, and queue checks. Database and cache probes are separate from the checks. |
-| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, and the tool classes including `Tools\GetDatabaseSchemaTool` and `Tools\GetMigrationsTool`. The only namespace that depends on `laravel/mcp`. |
+| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, and the tool classes including `Tools\GetDatabaseSchemaTool`, `Tools\GetMigrationsTool`, and `Tools\AnalyzeMigrationRisksTool`. The only namespace that depends on `laravel/mcp`. |
 | `Beacon\Diagnostics` | `Diagnostics` (the `beacon:check` checks), `DiagnosticReport`, `CheckResult`, `DiagnosticStatus`. Uses `laravel/mcp` only when it is installed. |
-| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:health`, `beacon:database`, `beacon:schema`, `beacon:migrations`, `beacon:install` and `beacon:check` |
+| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:health`, `beacon:database`, `beacon:schema`, `beacon:migrations`, `beacon:migration-risks`, `beacon:install` and `beacon:check` |
 
 Inspectors know nothing about MCP. Consumers call `Beacon::inspect()`, which authorizes the inspector's capability, runs it and returns a `Payload`. A `Payload` can only be built from `Data` and is always normalized and redacted, so a secret copied into a DTO by mistake is still removed before output.
 
