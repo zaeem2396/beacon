@@ -83,7 +83,7 @@ return [
     | registered capability.
     |
     | Available: application, environment, routes, config, database, schema,
-    | migrations, exceptions, queue, health. Unregistered names are ignored.
+    | migrations, migration_risk, exceptions, queue, health. Unregistered names are ignored.
     | Beacon v0.x is read-only: mutating capabilities are always denied and
     | cannot be enabled here.
     |
@@ -178,6 +178,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Migration risk analysis
+    |--------------------------------------------------------------------------
+    |
+    | Used only when migration risk analysis is requested. The timeout bounds
+    | the repository read, from 1 to 5 seconds. connections lists Laravel
+    | connection names in addition to the default. Schema metadata is used
+    | only when the schema capability is also allowed. Callers cannot supply
+    | PHP, SQL, or a filesystem path.
+    |
+    */
+
+    'migration_risk' => [
+        'timeout_seconds' => env('BEACON_MIGRATION_RISK_TIMEOUT', 2),
+        'connections' => array_values(array_filter(array_map(
+            static fn (string $name): string => trim($name),
+            explode(',', (string) env('BEACON_MIGRATION_RISK_CONNECTIONS', '')),
+        ), static fn (string $name): bool => $name !== '')),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Health probes
     |--------------------------------------------------------------------------
     |
@@ -232,6 +253,7 @@ return [
         'database' => ['enabled' => true],
         'schema' => ['enabled' => true],
         'migrations' => ['enabled' => true],
+        'migration_risk' => ['enabled' => true],
         'exceptions' => ['enabled' => true],
         'queue' => ['enabled' => true],
         'health' => ['enabled' => true],

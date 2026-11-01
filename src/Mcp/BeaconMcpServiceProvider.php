@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Beacon\Mcp;
 
+use Beacon\Mcp\Tools\AnalyzeMigrationRisksTool;
 use Beacon\Mcp\Tools\GetApplicationInfoTool;
 use Beacon\Mcp\Tools\GetConfigTool;
 use Beacon\Mcp\Tools\GetDatabaseSchemaTool;
@@ -38,6 +39,7 @@ final class BeaconMcpServiceProvider extends ServiceProvider
                 $registry->tool(GetDatabaseStatusTool::class);
                 $registry->tool(GetDatabaseSchemaTool::class);
                 $registry->tool(GetMigrationsTool::class);
+                $registry->tool(AnalyzeMigrationRisksTool::class);
             }
         });
     }
