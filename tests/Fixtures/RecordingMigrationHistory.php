@@ -16,6 +16,11 @@ final class RecordingMigrationHistory implements MigrationHistory
 
     public bool $fail = false;
 
+    /**
+     * @var array<string, int>
+     */
+    public array $batches = [];
+
     public function read(array $config, int $timeoutSeconds, string $table): HistoryResult
     {
         $this->calls++;
@@ -24,6 +29,6 @@ final class RecordingMigrationHistory implements MigrationHistory
             throw new \RuntimeException('mysql://beacon:migration-password-not-in-output@db.internal/app');
         }
 
-        return new HistoryResult(true, true, [], false);
+        return new HistoryResult(true, $this->batches === [], $this->batches, false);
     }
 }
