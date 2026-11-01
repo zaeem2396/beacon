@@ -7,10 +7,10 @@ namespace Beacon\Tests\Feature\Mcp;
 use Beacon\Mcp\ExecutionGate;
 use Beacon\Tests\Fixtures\RecordingSchemaReader;
 use Illuminate\Testing\TestResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Orchestra\Testbench\Attributes\DefineEnvironment;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Schema snapshot tools through the MCP HTTP lifecycle.
