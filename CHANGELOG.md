@@ -7,7 +7,8 @@
 - `beacon.get_database_status` and `php artisan beacon:database` report the default connection. MySQL, MariaDB, and SQLite are probed. PostgreSQL and SQL Server are identified and not opened. Credentials, hosts, and schema are not returned.
 - `beacon.get_database_schema` and `php artisan beacon:schema` report MySQL and MariaDB schema metadata. The `schema` capability is separate from `database`. Rows, credentials, and caller SQL are not accepted.
 - `beacon.get_migrations` and `php artisan beacon:migrations` compare migration filenames with the repository. The `migrations` capability is separate from `database` and `schema`. Migration PHP is not executed, and a missing history table is not created.
-- `beacon.analyze_migration_risks` and `php artisan beacon:migration-risks` report static risk findings for migration source. The `migration_risk` capability is separate from `migrations`, `database`, and `schema`. Findings are heuristic. Migration PHP and SQL are not executed. Schema comparison is still later.
+- `beacon.analyze_migration_risks` and `php artisan beacon:migration-risks` report static risk findings for migration source. The `migration_risk` capability is separate from `migrations`, `database`, and `schema`. Findings are heuristic. Migration PHP and SQL are not executed.
+- `beacon.create_schema_snapshot`, `beacon.compare_schema_snapshots`, `php artisan beacon:schema-snapshot`, and `php artisan beacon:schema-compare` compare normalized schema snapshots. `schema_snapshot` and `schema_compare` are separate default-deny capabilities. Live capture also requires `schema`. Rows are not read, and snapshot JSON is not executed.
 
 ## v0.1.0 — 2026-10-25
 

@@ -503,6 +503,36 @@ Exit `0` for `beacon:migration-risks` means the report was printed. Exit `1` is 
 
 ---
 
+## `beacon.create_schema_snapshot`
+
+Implemented. Also available locally as `php artisan beacon:schema-snapshot`. Requires `schema_snapshot` and `schema`. Allowing `schema` alone does not grant snapshot capture.
+
+The snapshot is built by paging schema inspection. MySQL and MariaDB are read from `information_schema`. Other drivers are recognised and not opened. Table rows, credentials, hosts, and view SQL are not included. Row estimates are omitted so two captures of the same structure do not differ because an estimate changed.
+
+Format version is `1`. Metadata and objects are separate. Comparison ignores timestamps, snapshot identifiers, and database names. `primary_columns` holds the ordered primary key. `references` holds foreign keys. Those names are used because the redactor treats a property containing the word key as sensitive.
+
+`--output` writes a file name under `storage/beacon/snapshots`. Absolute paths and `..` are rejected. The command does not accept SQL.
+
+Exit `0` means the snapshot was printed or written. Exit `1` is denied or an invalid file name. Exit `2` means the snapshot could not be collected.
+
+---
+
+## `beacon.compare_schema_snapshots`
+
+Implemented. Also available locally as `php artisan beacon:schema-compare {baseline} {candidate}`. Requires `schema_compare`. A `live` argument also requires `schema`.
+
+Inputs are snapshot JSON strings or one live capture. Both sides cannot be live. The loader uses `json_decode` with a depth limit and rejects documents larger than 512 KiB, unknown format versions, and unexpected shapes. PHP `unserialize` is not used. Snapshot text is not executed.
+
+Filters are `category`, `severity` as a minimum rank, `object` as an exact name, `detect_renames`, `page`, and `limit`. `detect_renames` defaults to false. A rename is reported only when one removed object and one added object share the same structure, and the finding is marked heuristic.
+
+Each difference has a stable id, category, change type, severity, confidence, explanation, and whether the comparison of that fact was complete. Summary counts follow the filters. A removed table is critical. A removed or narrowed column and a primary-key change are high. Missing metadata makes the comparison incomplete instead of inventing a value change.
+
+This is not proof that a deployment will fail or that data will be lost. View definitions are not compared. PostgreSQL, SQLite, and SQL Server are not snapshot sources in this release.
+
+Exit `0` for `beacon:schema-compare` means the report was printed. Exit `1` is denied or an invalid filter. Exit `2` means the report could not be collected.
+
+---
+
 ## `beacon.get_recent_exceptions`
 
 Return sanitized recent application errors.
@@ -578,6 +608,8 @@ beacon.get_database_status
 beacon.get_database_schema
 beacon.get_migrations
 beacon.analyze_migration_risks
+beacon.create_schema_snapshot
+beacon.compare_schema_snapshots
 beacon.get_recent_exceptions
 beacon.get_failed_jobs
 beacon.get_queue_status
