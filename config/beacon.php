@@ -135,6 +135,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Schema inspection
+    |--------------------------------------------------------------------------
+    |
+    | Used only when schema inspection is requested. The timeout is seconds,
+    | from 1 to 5. connections lists Laravel connection names in addition to
+    | the default. exclude lists exact table or view names, or a prefix
+    | ending in *. Callers cannot change this list or supply SQL.
+    |
+    */
+
+    'schema' => [
+        'timeout_seconds' => env('BEACON_SCHEMA_TIMEOUT', 2),
+        'connections' => array_values(array_filter(array_map(
+            static fn (string $name): string => trim($name),
+            explode(',', (string) env('BEACON_SCHEMA_CONNECTIONS', '')),
+        ), static fn (string $name): bool => $name !== '')),
+        'exclude' => array_values(array_filter(array_map(
+            static fn (string $name): string => trim($name),
+            explode(',', (string) env('BEACON_SCHEMA_EXCLUDE', '')),
+        ), static fn (string $name): bool => $name !== '')),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Health probes
     |--------------------------------------------------------------------------
     |
@@ -187,6 +211,7 @@ return [
             ],
         ],
         'database' => ['enabled' => true],
+        'schema' => ['enabled' => true],
         'migrations' => ['enabled' => true],
         'exceptions' => ['enabled' => true],
         'queue' => ['enabled' => true],

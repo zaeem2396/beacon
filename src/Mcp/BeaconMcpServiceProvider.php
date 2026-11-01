@@ -6,6 +6,7 @@ namespace Beacon\Mcp;
 
 use Beacon\Mcp\Tools\GetApplicationInfoTool;
 use Beacon\Mcp\Tools\GetConfigTool;
+use Beacon\Mcp\Tools\GetDatabaseSchemaTool;
 use Beacon\Mcp\Tools\GetDatabaseStatusTool;
 use Beacon\Mcp\Tools\GetEnvironmentTool;
 use Beacon\Mcp\Tools\GetHealthTool;
@@ -34,6 +35,7 @@ final class BeaconMcpServiceProvider extends ServiceProvider
                 $registry->tool(GetConfigTool::class);
                 $registry->tool(GetHealthTool::class);
                 $registry->tool(GetDatabaseStatusTool::class);
+                $registry->tool(GetDatabaseSchemaTool::class);
             }
         });
     }

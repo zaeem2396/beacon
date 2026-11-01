@@ -170,6 +170,35 @@ final class BeaconConfig
         return $this->boundedTimeout('beacon.database.timeout_seconds');
     }
 
+    /**
+     * Seconds for schema inspection, from 1 to 5. Null when the configured
+     * value is present and not in that range. A missing value uses 2.
+     */
+    public function schemaTimeout(): ?int
+    {
+        return $this->boundedTimeout('beacon.schema.timeout_seconds');
+    }
+
+    /**
+     * Connection names that may be inspected in addition to the default.
+     *
+     * @return list<string>
+     */
+    public function schemaConnections(): array
+    {
+        return $this->stringList('beacon.schema.connections');
+    }
+
+    /**
+     * Table or view names to omit. A trailing * is a prefix, not a regular expression.
+     *
+     * @return list<string>
+     */
+    public function schemaExclusions(): array
+    {
+        return $this->stringList('beacon.schema.exclude');
+    }
+
     public function healthCacheEnabled(): bool
     {
         return $this->bool('beacon.health.cache.enabled', false);

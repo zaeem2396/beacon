@@ -4,7 +4,8 @@
 
 ### Added
 
-- `beacon.get_database_status` and `php artisan beacon:database` report the default connection. MySQL, MariaDB, and SQLite are probed. PostgreSQL and SQL Server are identified and not opened. Credentials, hosts, and schema are not returned. Schema inspection is still later.
+- `beacon.get_database_status` and `php artisan beacon:database` report the default connection. MySQL, MariaDB, and SQLite are probed. PostgreSQL and SQL Server are identified and not opened. Credentials, hosts, and schema are not returned.
+- `beacon.get_database_schema` and `php artisan beacon:schema` report MySQL and MariaDB schema metadata. The `schema` capability is separate from `database`. Rows, credentials, and caller SQL are not accepted. Migration inspection is still later.
 
 ## v0.1.0 — 2026-10-25
 
