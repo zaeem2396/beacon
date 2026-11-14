@@ -30,6 +30,8 @@ enum InspectionCapability: string
     case Queue = 'queue';
     case FailedJobs = 'failed_jobs';
     case Scheduler = 'scheduler';
+    case Requests = 'requests';
+    case RequestSummary = 'request_summary';
     case Health = 'health';
 
     public function capability(): Capability
@@ -58,6 +60,8 @@ enum InspectionCapability: string
             self::Queue => 'Queue configuration and safely observable backend state.',
             self::FailedJobs => 'Failed job metadata without payloads.',
             self::Scheduler => 'Registered scheduled task definitions, without executing tasks.',
+            self::Requests => 'Recent HTTP request observations, without bodies, cookies, or credentials.',
+            self::RequestSummary => 'Request summary metrics for the inspected storage window.',
             self::Health => 'Normalized application and infrastructure health results.',
         };
     }
