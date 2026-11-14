@@ -2,7 +2,7 @@
 
 Laravel Beacon gives AI agents safe, structured information about a Laravel application over MCP.
 
-> **Status:** v0.1.0 is the initial public release, [Laravel Application Intelligence](CHANGELOG.md). Database status, schema inspection, migration inspection, and migration risk analysis are implemented and are not part of that tag. Schema comparison is next. It is early development. It inspects application metadata, environment, routes, an allowlisted configuration, health, the default database connection, MySQL or MariaDB schema metadata, migration history, and static migration risk. It is not a monitoring product and it does not find root causes. See [ROADMAP.md](ROADMAP.md).
+> **Status:** v0.1.0 is the initial public release, [Laravel Application Intelligence](CHANGELOG.md). Database status, schema inspection, migration inspection, migration risk analysis, and schema comparison are implemented and are not part of that tag. It is early development. It inspects application metadata, environment, routes, an allowlisted configuration, health, the default database connection, MySQL or MariaDB schema metadata, migration history, static migration risk, and structural schema differences. It is not a monitoring product and it does not find root causes. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -129,6 +129,32 @@ Pending migrations are analyzed by default. `--include-executed` also analyzes m
 Schema metadata is applied only when the `schema` capability is also allowed. It can show whether a table exists and can include an `information_schema` row estimate. It does not read table rows.
 
 Exit `0` means the report was printed. Exit `1` means Beacon or the capability does not allow the command, the inspector is disabled, or a filter is invalid. Exit `2` means the report could not be collected.
+
+### `beacon:schema-snapshot`
+
+```bash
+php artisan beacon:schema-snapshot --json
+php artisan beacon:schema-snapshot --output=local.json
+```
+
+Captures the same snapshot as [`beacon.create_schema_snapshot`](#beaconcreate_schema_snapshot). It requires both `schema_snapshot` and `schema`. The command reads schema metadata. It does not read table rows or accept SQL.
+
+`--output` is a file name inside `storage/beacon/snapshots`, such as `local.json`. It is not a path. `--json` prints the snapshot.
+
+Exit `0` means the snapshot was printed or written. Exit `1` means Beacon or a required capability does not allow the command, or the file name is invalid. Exit `2` means the snapshot could not be collected.
+
+### `beacon:schema-compare`
+
+```bash
+php artisan beacon:schema-compare baseline.json candidate.json --json
+php artisan beacon:schema-compare baseline.json live --severity=high
+```
+
+Prints the same report as [`beacon.compare_schema_snapshots`](#beaconcompare_schema_snapshots). Each argument is the word `live` or a file name in `storage/beacon/snapshots`. Paths are rejected. The command requires `schema_compare`. A `live` side also requires `schema`.
+
+`--category`, `--severity`, and `--object` filter differences. `--severity` is a minimum rank. `--detect-renames` pairs one removed object with one added object when the structure matches. That match is heuristic.
+
+Exit `0` means the report was printed. Exit `1` means Beacon or a required capability does not allow the command, or a filter is invalid. Exit `2` means the report could not be collected.
 
 ### `beacon:install`
 
@@ -429,7 +455,7 @@ What an authenticated client may do is decided separately; see [Authorization an
 - **Tokens do not expire.** They stay valid until you rotate them.
 - **No built-in rate limiting.** A 32+ character random token cannot realistically be guessed, but you can add Laravel's `throttle` middleware in front of the endpoint if you need request limits.
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
-- **Nine tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment), [`beacon.get_routes`](#beaconget_routes), [`beacon.get_config`](#beaconget_config), [`beacon.get_health`](#beaconget_health), [`beacon.get_database_status`](#beaconget_database_status), [`beacon.get_database_schema`](#beaconget_database_schema), [`beacon.get_migrations`](#beaconget_migrations) and [`beacon.analyze_migration_risks`](#beaconanalyze_migration_risks). Schema comparison and later tools follow the [roadmap](ROADMAP.md).
+- **Eleven tools, no resources or prompts.** The server exposes [`beacon.get_application_info`](#beaconget_application_info), [`beacon.get_environment`](#beaconget_environment), [`beacon.get_routes`](#beaconget_routes), [`beacon.get_config`](#beaconget_config), [`beacon.get_health`](#beaconget_health), [`beacon.get_database_status`](#beaconget_database_status), [`beacon.get_database_schema`](#beaconget_database_schema), [`beacon.get_migrations`](#beaconget_migrations), [`beacon.analyze_migration_risks`](#beaconanalyze_migration_risks), [`beacon.create_schema_snapshot`](#beaconcreate_schema_snapshot) and [`beacon.compare_schema_snapshots`](#beaconcompare_schema_snapshots). Later tools follow the [roadmap](ROADMAP.md).
 
 ## Authorization and the read-only model
 
@@ -449,11 +475,13 @@ Every operation that exposes application information requires exactly one capabi
 | `schema`      | Database schema metadata, without credentials or table contents |
 | `migrations`  | Migration files and repository history, without executing migrations |
 | `migration_risk` | Static migration risk findings, without executing migrations |
+| `schema_snapshot` | Schema snapshots, without table rows or credentials |
+| `schema_compare` | Structural schema comparison, without reading table rows |
 | `exceptions`  | Recent exceptions in sanitized form                           |
 | `queue`       | Queue and failed-job metadata                                 |
 | `health`      | Application and infrastructure health results                 |
 
-`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. `schema` is used by [`beacon.get_database_schema`](#beaconget_database_schema). Allowing `database` does not allow schema inspection. `migrations` is used by [`beacon.get_migrations`](#beaconget_migrations). Allowing `database` or `schema` does not allow migration inspection. `migration_risk` is used by [`beacon.analyze_migration_risks`](#beaconanalyze_migration_risks). Allowing `migrations`, `database`, or `schema` does not allow risk analysis. When `schema` is also allowed, risk analysis may use schema metadata to refine findings. `exceptions` and `queue` define permissions for upcoming inspectors and grant nothing yet.
+`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. `schema` is used by [`beacon.get_database_schema`](#beaconget_database_schema). Allowing `database` does not allow schema inspection. `migrations` is used by [`beacon.get_migrations`](#beaconget_migrations). Allowing `database` or `schema` does not allow migration inspection. `migration_risk` is used by [`beacon.analyze_migration_risks`](#beaconanalyze_migration_risks). Allowing `migrations`, `database`, or `schema` does not allow risk analysis. When `schema` is also allowed, risk analysis may use schema metadata to refine findings. `schema_snapshot` is used by [`beacon.create_schema_snapshot`](#beaconcreate_schema_snapshot) and also requires `schema`. `schema_compare` is used by [`beacon.compare_schema_snapshots`](#beaconcompare_schema_snapshots). A live side of a comparison also requires `schema`. Allowing `schema` alone does not grant either tool. `exceptions` and `queue` define permissions for upcoming inspectors and grant nothing yet.
 
 ### Default deny
 
@@ -557,6 +585,8 @@ Every Beacon tool is read-only, requires exactly one capability, and runs only f
 | `beacon.get_database_schema`  | `schema`      | Read-only MySQL and MariaDB schema metadata, without rows or credentials |
 | `beacon.get_migrations`       | `migrations`  | Read-only migration files and repository history, without running migrations |
 | `beacon.analyze_migration_risks` | `migration_risk` | Static risk findings for migration source, without executing migrations |
+| `beacon.create_schema_snapshot` | `schema_snapshot` | Normalized MySQL or MariaDB schema snapshot, without rows or credentials |
+| `beacon.compare_schema_snapshots` | `schema_compare` | Structural differences between two snapshots, or a snapshot and the live schema |
 
 ### `beacon.get_application_info`
 
@@ -1523,7 +1553,7 @@ Raw `DB::statement`, `DB::unprepared`, and literal `DB::select`, `DB::update`, a
 - That a branch which is not run will be skipped. Both sides of an `if` are analyzed, and the finding confidence is medium.
 - The behavior of code in another method, a comment, a string, a trait, or an included file. Includes and `eval` are not loaded. A trait is not expanded. The limitation says so.
 - PostgreSQL or SQL Server repository history. Those drivers are recognised and not opened. Source files can still be analyzed when a migration name is requested.
-- Schema comparison, migration repair, or migration execution.
+- Migration repair or migration execution. Schema comparison is a separate tool.
 
 #### Limitations
 
@@ -1534,6 +1564,113 @@ Raw `DB::statement`, `DB::unprepared`, and literal `DB::select`, `DB::update`, a
 - **Dynamic table names and dynamic SQL stay uncertain.**
 - **Row estimates are metadata.** They are not used as proof that a unique index will fail.
 - **The timeout bounds the repository read.** It does not bound parsing.
+
+### `beacon.create_schema_snapshot`
+
+Captures a versioned JSON snapshot of the live MySQL or MariaDB schema by paging [`beacon.get_database_schema`](#beaconget_database_schema). It does not read table rows and it does not accept SQL.
+
+|                 |                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Capability      | `schema_snapshot` (`schema_snapshot:read`) and `schema` (`schema:read`)                |
+| Inspector       | `schema_snapshot` (`Beacon\Inspectors\SchemaSnapshotInspector`)                         |
+| Parameters      | Optional `connection`. Any other argument is rejected and is not echoed.               |
+| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`.                  |
+
+`php artisan beacon:schema-snapshot` prints or writes this same document. `--output` accepts a file name in `storage/beacon/snapshots` and rejects paths.
+
+The snapshot format is version `1`. Structural objects are separate from metadata. Timestamps, identifiers, environment labels, and database names are not structural differences. Row estimates are omitted because they change without a schema change. View SQL is not stored.
+
+Shortened example:
+
+```json
+{
+  "format_version": 1,
+  "metadata": {
+    "driver": "mysql",
+    "server_version": "8.4.0",
+    "database": "app",
+    "source": "live",
+    "complete": true,
+    "columns_included": true,
+    "indexes_included": true,
+    "references_included": true,
+    "views_included": true
+  },
+  "objects": [
+    {
+      "name": "orders",
+      "type": "table",
+      "primary_columns": ["id"],
+      "columns": [
+        {"name": "id", "type_name": "bigint", "normalized_type": "bigint", "nullable": false}
+      ],
+      "references": []
+    }
+  ]
+}
+```
+
+`primary_columns` is the ordered primary key. `references` are foreign keys. Those names avoid the redactor, which treats a key containing the word key as sensitive. A normalized type is `boolean` for a boolean-like column, `json` for JSON, and otherwise the database type name.
+
+### `beacon.compare_schema_snapshots`
+
+Compares two snapshot documents, or one snapshot and the live schema. The comparator does not use an AI provider. It does not execute snapshot text, SQL, or PHP.
+
+|                 |                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| Capability      | `schema_compare` (`schema_compare:read`). A live side also requires `schema`.          |
+| Inspector       | `schema_compare` (`Beacon\Inspectors\SchemaComparisonInspector`)                        |
+| Parameters      | Snapshot JSON strings, optional live flags, and literal filters.                       |
+| Annotations     | `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`.                  |
+
+`baseline` and `candidate` are snapshot JSON. Set `baseline_live` or `candidate_live` instead of that document. Both sides cannot be live. `category` is `table`, `column`, `primary_key`, `index`, `foreign_key`, `view`, or `metadata`. `severity` is a minimum rank. `object` is an exact name. `detect_renames` defaults to false. `limit` defaults to 100 and cannot exceed 100.
+
+A removed table is critical. A removed column, a narrower column, a change to required, and a changed primary key are high. A removed foreign key, a new unique index, and a removed index are medium. A nullable column or a column with a default is low. A new table is informational. Missing metadata is informational and the comparison is marked incomplete. These severities describe the structural change. They are not proof that a deployment will fail or that rows were lost.
+
+Rename pairing runs only when `detect_renames` is true, and only when one removed object and one added object share the same structure. The finding is medium confidence and `heuristic` is true. Otherwise the removal and addition stay separate.
+
+```json
+{
+  "summary": {"differences": 2, "critical": 1, "informational": 1, "complete": true},
+  "differences": [
+    {
+      "id": "table.legacy.removed",
+      "category": "table",
+      "change": "removed",
+      "severity": "critical",
+      "confidence": "high",
+      "explanation": "The table is present in the baseline snapshot and absent from the candidate. Stored rows were not read."
+    },
+    {
+      "id": "table.audit.added",
+      "category": "table",
+      "change": "added",
+      "severity": "informational",
+      "confidence": "high",
+      "explanation": "The table is present in the candidate snapshot and absent from the baseline."
+    }
+  ]
+}
+```
+
+A new non-unique index is low. Its explanation says locking was not measured.
+
+#### What this does not guarantee
+
+- That a deployment will succeed or fail.
+- That rows will be lost, truncated, or rejected.
+- That two view definitions match. View SQL is not part of the snapshot.
+- PostgreSQL, SQLite, or SQL Server snapshots. Live capture opens MySQL and MariaDB only.
+- Schema repair, migration execution, or automatic synchronization.
+
+#### Limitations
+
+- **Live capture reuses schema inspection.** It pages at 50 objects and stops at 500. A truncated snapshot is incomplete, and added or removed objects are not classified.
+- **Input JSON is limited to 512 KiB.** PHP `unserialize` is not used. Unknown format versions and malformed documents are rejected.
+- **Difference output stops at 1000 findings**, then pagination returns at most 100 per page.
+- **Index expression text is not compared.** A missing index type is not reported as a type change.
+- **Configured schema exclusions apply to live capture.** Objects removed by an exclusion are absent from both sides when the same rules are used.
+- **File arguments stay inside `storage/beacon/snapshots`.** Absolute paths and `..` are rejected.
 
 ## Architecture
 
@@ -1549,18 +1686,19 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
 | `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config), `Version` (installed version)                |
-| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `ConfigurationInspection`, `HealthInspection`, `DatabaseStatus`, `SchemaInspection`, `MigrationInspection`, `MigrationRiskInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
+| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, DTOs (`ApplicationInfo`, `EnvironmentInspection`, `RouteInspection`, `ConfigurationInspection`, `HealthInspection`, `DatabaseStatus`, `SchemaInspection`, `MigrationInspection`, `MigrationRiskInspection`, `SchemaSnapshotInspection`, `SchemaComparisonInspection`, `Finding`, `SafeValue`, `HealthCheckResult`) |
 | `Beacon\Database`   | `ConnectionStatus`, `DatabaseVersion`, and the read-only status probe. Separate from the optional health database probe. |
 | `Beacon\Schema`     | Schema query validation, MySQL and MariaDB `information_schema` reads, and metadata normalization. Statements are fixed and checked before they run. |
 | `Beacon\Migrations` | Migration filename discovery, repository reads, and status classification. Files are not included or executed. |
 | `Beacon\Risk`       | Static migration parsing, operation recognition, and deterministic risk rules. No AI provider and no SQL execution. |
-| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, `ConfigurationInspector`, `HealthInspector`, `DatabaseInspector`, `SchemaInspector`, `MigrationInspector`, `MigrationRiskInspector`, and the environment, route, and configuration analyzers with their checks |
+| `Beacon\Comparison` | Versioned schema snapshots and deterministic structural comparison. Live capture reuses schema inspection. |
+| `Beacon\Inspectors` | Built-in inspectors: `ApplicationInspector`, `EnvironmentInspector`, `RouteInspector`, `ConfigurationInspector`, `HealthInspector`, `DatabaseInspector`, `SchemaInspector`, `MigrationInspector`, `MigrationRiskInspector`, `SchemaSnapshotInspector`, `SchemaComparisonInspector`, and the environment, route, and configuration analyzers with their checks |
 | `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `UrlSanitizer`, `BearerTokenAuthenticator`, `Principal` |
 | `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
 | `Beacon\Health`     | `HealthStatus`, `HealthRunner`, `HealthChecks`, and the application, database, cache, and queue checks. Database and cache probes are separate from the checks. |
-| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, and the tool classes including `Tools\GetDatabaseSchemaTool`, `Tools\GetMigrationsTool`, and `Tools\AnalyzeMigrationRisksTool`. The only namespace that depends on `laravel/mcp`. |
+| `Beacon\Mcp`        | `BeaconServer`, `ServerRegistration`, `McpRegistry`, `ExecutionGate`, `CallerResolver`, `ResponseSanitizer`, `Http\AuthenticateMcpRequest`, and the tool classes including `Tools\GetDatabaseSchemaTool`, `Tools\GetMigrationsTool`, `Tools\AnalyzeMigrationRisksTool`, `Tools\CreateSchemaSnapshotTool`, and `Tools\CompareSchemaSnapshotsTool`. The only namespace that depends on `laravel/mcp`. |
 | `Beacon\Diagnostics` | `Diagnostics` (the `beacon:check` checks), `DiagnosticReport`, `CheckResult`, `DiagnosticStatus`. Uses `laravel/mcp` only when it is installed. |
-| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:health`, `beacon:database`, `beacon:schema`, `beacon:migrations`, `beacon:migration-risks`, `beacon:install` and `beacon:check` |
+| `Beacon\Console`   | The thin Artisan commands `beacon`, `beacon:application`, `beacon:health`, `beacon:database`, `beacon:schema`, `beacon:migrations`, `beacon:migration-risks`, `beacon:schema-snapshot`, `beacon:schema-compare`, `beacon:install` and `beacon:check` |
 
 Inspectors know nothing about MCP. Consumers call `Beacon::inspect()`, which authorizes the inspector's capability, runs it and returns a `Payload`. A `Payload` can only be built from `Data` and is always normalized and redacted, so a secret copied into a DTO by mistake is still removed before output.
 

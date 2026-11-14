@@ -13,6 +13,8 @@ use Beacon\Console\Commands\InstallCommand;
 use Beacon\Console\Commands\MigrationRisksCommand;
 use Beacon\Console\Commands\MigrationsCommand;
 use Beacon\Console\Commands\SchemaCommand;
+use Beacon\Console\Commands\SchemaCompareCommand;
+use Beacon\Console\Commands\SchemaSnapshotCommand;
 use Beacon\Contracts\Authenticator;
 use Beacon\Contracts\Authorizer;
 use Beacon\Contracts\Redactor;
@@ -35,7 +37,9 @@ use Beacon\Inspectors\HealthInspector;
 use Beacon\Inspectors\MigrationInspector;
 use Beacon\Inspectors\MigrationRiskInspector;
 use Beacon\Inspectors\RouteInspector;
+use Beacon\Inspectors\SchemaComparisonInspector;
 use Beacon\Inspectors\SchemaInspector;
+use Beacon\Inspectors\SchemaSnapshotInspector;
 use Beacon\Mcp\BeaconMcpServiceProvider;
 use Beacon\Migrations\MigrationFiles;
 use Beacon\Migrations\MigrationHistory;
@@ -94,6 +98,8 @@ final class BeaconServiceProvider extends ServiceProvider
             $inspectors->register(SchemaInspector::NAME, SchemaInspector::class);
             $inspectors->register(MigrationInspector::NAME, MigrationInspector::class);
             $inspectors->register(MigrationRiskInspector::NAME, MigrationRiskInspector::class);
+            $inspectors->register(SchemaSnapshotInspector::NAME, SchemaSnapshotInspector::class);
+            $inspectors->register(SchemaComparisonInspector::NAME, SchemaComparisonInspector::class);
         });
 
         $this->app->register(BeaconMcpServiceProvider::class);
@@ -114,6 +120,8 @@ final class BeaconServiceProvider extends ServiceProvider
                 SchemaCommand::class,
                 MigrationsCommand::class,
                 MigrationRisksCommand::class,
+                SchemaSnapshotCommand::class,
+                SchemaCompareCommand::class,
                 CheckCommand::class,
                 InstallCommand::class,
             ]);

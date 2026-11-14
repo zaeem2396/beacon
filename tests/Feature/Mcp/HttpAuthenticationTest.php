@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Log;
 use Laravel\Mcp\Server\Middleware\AddWwwAuthenticateHeader;
 use Laravel\Mcp\Server\Middleware\ReorderJsonAccept;
 use Laravel\Mcp\Server\Middleware\ValidateMcpHeaders;
+use Laravel\Mcp\Server\Middleware\ValidateOrigin;
 use Orchestra\Testbench\Attributes\DefineEnvironment;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -298,12 +299,19 @@ final class HttpAuthenticationTest extends McpTestCase
         $route = $this->mcpRoute();
         $this->assertInstanceOf(Route::class, $route);
 
-        $this->assertSame([
-            AuthenticateMcpRequest::class,
-            ReorderJsonAccept::class,
-            ValidateMcpHeaders::class,
-            AddWwwAuthenticateHeader::class,
-        ], $route->gatherMiddleware());
+        $expected = [AuthenticateMcpRequest::class];
+
+        if (class_exists(ValidateOrigin::class)) {
+            $expected[] = ValidateOrigin::class;
+        }
+
+        $expected[] = ReorderJsonAccept::class;
+        $expected[] = ValidateMcpHeaders::class;
+        $expected[] = AddWwwAuthenticateHeader::class;
+
+        $middleware = $route->gatherMiddleware();
+        $this->assertSame(AuthenticateMcpRequest::class, $middleware[0] ?? null);
+        $this->assertSame($expected, $middleware);
     }
 
     #[Test]

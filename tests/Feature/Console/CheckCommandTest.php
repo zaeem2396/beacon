@@ -61,7 +61,7 @@ final class CheckCommandTest extends TestCase
         [, $report] = $this->check();
 
         $this->assertSame('pass', $this->statusOf($report, 'inspectors'));
-        $this->assertSame('Enabled: application, environment, routes, config, health, database, schema, migrations, migration_risk.', $this->messageOf($report, 'inspectors'));
+        $this->assertSame('Enabled: application, environment, routes, config, health, database, schema, migrations, migration_risk, schema_snapshot, schema_compare.', $this->messageOf($report, 'inspectors'));
     }
 
     #[Test]
@@ -76,6 +76,8 @@ final class CheckCommandTest extends TestCase
         config()->set('beacon.inspectors.schema.enabled', false);
         config()->set('beacon.inspectors.migrations.enabled', false);
         config()->set('beacon.inspectors.migration_risk.enabled', false);
+        config()->set('beacon.inspectors.schema_snapshot.enabled', false);
+        config()->set('beacon.inspectors.schema_compare.enabled', false);
 
         [$exitCode, $report] = $this->check();
 
