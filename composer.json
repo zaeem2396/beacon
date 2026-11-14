@@ -1,6 +1,6 @@
 {
     "name": "zaeem2396/beacon",
-    "description": "Safe, structured Laravel application intelligence for AI agents over MCP",
+    "description": "Safe, structured Laravel application and database intelligence for AI agents over MCP",
     "type": "library",
     "license": "MIT",
     "keywords": [
@@ -8,7 +8,9 @@
         "mcp",
         "ai",
         "diagnostics",
-        "inspection"
+        "inspection",
+        "database",
+        "migrations"
     ],
     "require": {
         "php": "^8.2",
