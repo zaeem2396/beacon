@@ -2,7 +2,7 @@
 
 Laravel Beacon gives AI agents safe, structured information about a Laravel application over MCP.
 
-> **Status:** v0.1.0 is the initial public release, [Laravel Application Intelligence](CHANGELOG.md). Database status, schema inspection, migration inspection, migration risk analysis, and schema comparison are implemented and are not part of that tag. It is early development. It inspects application metadata, environment, routes, an allowlisted configuration, health, the default database connection, MySQL or MariaDB schema metadata, migration history, static migration risk, and structural schema differences. It is not a monitoring product and it does not find root causes. See [ROADMAP.md](ROADMAP.md).
+> **Status:** v0.2.0 is [Database Intelligence](CHANGELOG.md): connection status, MySQL and MariaDB schema metadata, migration history, static migration risk, and structural schema comparison, on top of the v0.1.0 application inspections. It is early development. It is not a monitoring product and it does not find root causes. Runtime error, queue, and deployment intelligence are next. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -239,7 +239,7 @@ With `--json`, stdout contains exactly one JSON document and nothing else (no co
 ```json
 {
     "schema_version": 1,
-    "beacon_version": "v0.1.0",
+    "beacon_version": "v0.2.0",
     "status": "misconfigured",
     "exit_code": 1,
     "summary": {
@@ -631,7 +631,7 @@ To remove the tool entirely, disable its inspector. The tool then no longer appe
     "maintenance_mode": false,
     "laravel_version": "13.35.0",
     "php_version": "8.3.6",
-    "beacon_version": "v0.1.0"
+    "beacon_version": "v0.2.0"
 }
 ```
 
@@ -652,7 +652,7 @@ Every field is always present, in this order. `null` means **unknown**: the valu
 | `php_version`      | string           | `PHP_VERSION` of the serving process      | never                                                            |
 | `beacon_version`   | string or null   | Composer's installed-package metadata     | Beacon's version cannot be determined                            |
 
-`beacon_version` is Composer's pretty version for `zaeem2396/beacon`. The example `v0.1.0` is what an install of that tag reports. A branch install reports the branch, such as `dev-main`.
+`beacon_version` is Composer's pretty version for `zaeem2396/beacon`. The example `v0.2.0` is what an install of that tag reports. A branch install reports the branch, such as `dev-main`.
 
 The schema is versioned by `schema_version`. Fields may be added within schema 1, but existing fields will not be removed or change meaning.
 

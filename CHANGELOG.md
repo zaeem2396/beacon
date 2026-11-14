@@ -2,13 +2,27 @@
 
 ## Unreleased
 
+## v0.2.0 — 2026-11-14
+
+Database Intelligence. Beacon can report the default connection, inspect MySQL and MariaDB schema metadata, compare migration files with the repository, classify static migration risk, and compare normalized schema snapshots. Findings are heuristic. Beacon does not execute migration PHP or SQL, read table rows, modify schemas, or prove that a deployment will fail.
+
+Runtime error intelligence, queue intelligence, and deployment intelligence are not in this release. They remain later roadmap items.
+
+The reported Beacon version still comes from Composer's installed-package metadata. A `v0.2.0` install reports `v0.2.0`. A branch install reports that branch, such as `dev-main`.
+
 ### Added
 
-- `beacon.get_database_status` and `php artisan beacon:database` report the default connection. MySQL, MariaDB, and SQLite are probed. PostgreSQL and SQL Server are identified and not opened. Credentials, hosts, and schema are not returned.
+- `beacon.get_database_status` and `php artisan beacon:database` report the default connection. MySQL, MariaDB, and SQLite are probed. PostgreSQL and SQL Server are identified and not opened. Credentials, hosts, and schema are not returned. Capability: `database`.
 - `beacon.get_database_schema` and `php artisan beacon:schema` report MySQL and MariaDB schema metadata. The `schema` capability is separate from `database`. Rows, credentials, and caller SQL are not accepted.
 - `beacon.get_migrations` and `php artisan beacon:migrations` compare migration filenames with the repository. The `migrations` capability is separate from `database` and `schema`. Migration PHP is not executed, and a missing history table is not created.
-- `beacon.analyze_migration_risks` and `php artisan beacon:migration-risks` report static risk findings for migration source. The `migration_risk` capability is separate from `migrations`, `database`, and `schema`. Findings are heuristic. Migration PHP and SQL are not executed.
+- `beacon.analyze_migration_risks` and `php artisan beacon:migration-risks` report static risk findings for migration source. The `migration_risk` capability is separate from `migrations`, `database`, and `schema`. Findings are heuristic. Migration PHP and SQL are not executed. Depends on `nikic/php-parser`.
 - `beacon.create_schema_snapshot`, `beacon.compare_schema_snapshots`, `php artisan beacon:schema-snapshot`, and `php artisan beacon:schema-compare` compare normalized schema snapshots. `schema_snapshot` and `schema_compare` are separate default-deny capabilities. Live capture also requires `schema`. Rows are not read, and snapshot JSON is not executed.
+
+### Security
+
+- Database, schema, migrations, migration risk, schema snapshot, and schema compare remain default-deny and independent of each other.
+- Snapshot capture reuses schema inspection. Comparison of saved snapshots does not open the database. Snapshot files are confined to `storage/beacon/snapshots`.
+- Risk analysis never evaluates migration PHP. Schema comparison never unserializes snapshots or runs SQL from snapshot text.
 
 ## v0.1.0 — 2026-10-25
 
