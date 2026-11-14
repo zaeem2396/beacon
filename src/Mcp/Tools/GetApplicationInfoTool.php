@@ -61,8 +61,13 @@ final class GetApplicationInfoTool extends Tool implements RequiresCapability
         beacon.get_database_schema for schema metadata, beacon.get_migrations
         for migration history, beacon.analyze_migration_risks for static
         migration risk findings, beacon.create_schema_snapshot to capture a schema
-        snapshot, and beacon.compare_schema_snapshots to compare snapshots. Queue and error inspection are separate tools when
-        they are available.
+        snapshot, beacon.compare_schema_snapshots to compare snapshots,
+        beacon.get_runtime_info for PHP and Laravel runtime facts,
+        beacon.get_recent_exceptions for sanitized exceptions,
+        beacon.get_error_aggregates and beacon.get_error_summary for grouped
+        error metrics, beacon.get_log_summary for file log counts,
+        beacon.get_queue_status and beacon.get_failed_jobs for queue state, and
+        beacon.get_scheduler_status for scheduled task definitions.
 
         php_version describes the process serving this MCP connection. Over stdio that is the
         PHP CLI, whose version and settings can differ from PHP-FPM serving web traffic.

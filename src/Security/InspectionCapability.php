@@ -22,8 +22,14 @@ enum InspectionCapability: string
     case MigrationRisk = 'migration_risk';
     case SchemaSnapshot = 'schema_snapshot';
     case SchemaCompare = 'schema_compare';
+    case Runtime = 'runtime';
     case Exceptions = 'exceptions';
+    case ErrorAggregate = 'error_aggregate';
+    case ErrorSummary = 'error_summary';
+    case Logs = 'logs';
     case Queue = 'queue';
+    case FailedJobs = 'failed_jobs';
+    case Scheduler = 'scheduler';
     case Health = 'health';
 
     public function capability(): Capability
@@ -44,8 +50,14 @@ enum InspectionCapability: string
             self::MigrationRisk => 'Static migration risk findings, without executing migrations.',
             self::SchemaSnapshot => 'Schema snapshots, without table rows or credentials.',
             self::SchemaCompare => 'Structural schema comparison, without reading table rows.',
+            self::Runtime => 'PHP and Laravel runtime facts and allowlisted drivers, without credentials.',
             self::Exceptions => 'Recent exceptions in a sanitized, structured form.',
-            self::Queue => 'Queue and failed-job metadata.',
+            self::ErrorAggregate => 'Grouped exceptions for the inspected log window.',
+            self::ErrorSummary => 'Exception summary metrics for the inspected log window.',
+            self::Logs => 'Structured summaries of supported file log channels.',
+            self::Queue => 'Queue configuration and safely observable backend state.',
+            self::FailedJobs => 'Failed job metadata without payloads.',
+            self::Scheduler => 'Registered scheduled task definitions, without executing tasks.',
             self::Health => 'Normalized application and infrastructure health results.',
         };
     }

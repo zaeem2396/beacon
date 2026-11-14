@@ -12,9 +12,17 @@ use Beacon\Mcp\Tools\GetConfigTool;
 use Beacon\Mcp\Tools\GetDatabaseSchemaTool;
 use Beacon\Mcp\Tools\GetDatabaseStatusTool;
 use Beacon\Mcp\Tools\GetEnvironmentTool;
+use Beacon\Mcp\Tools\GetErrorAggregatesTool;
+use Beacon\Mcp\Tools\GetErrorSummaryTool;
+use Beacon\Mcp\Tools\GetFailedJobsTool;
 use Beacon\Mcp\Tools\GetHealthTool;
+use Beacon\Mcp\Tools\GetLogSummaryTool;
 use Beacon\Mcp\Tools\GetMigrationsTool;
+use Beacon\Mcp\Tools\GetQueueStatusTool;
+use Beacon\Mcp\Tools\GetRecentExceptionsTool;
 use Beacon\Mcp\Tools\GetRoutesTool;
+use Beacon\Mcp\Tools\GetRuntimeInfoTool;
+use Beacon\Mcp\Tools\GetSchedulerStatusTool;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Server\Tool;
 
@@ -44,6 +52,14 @@ final class BeaconMcpServiceProvider extends ServiceProvider
                 $registry->tool(AnalyzeMigrationRisksTool::class);
                 $registry->tool(CreateSchemaSnapshotTool::class);
                 $registry->tool(CompareSchemaSnapshotsTool::class);
+                $registry->tool(GetRuntimeInfoTool::class);
+                $registry->tool(GetRecentExceptionsTool::class);
+                $registry->tool(GetErrorAggregatesTool::class);
+                $registry->tool(GetErrorSummaryTool::class);
+                $registry->tool(GetLogSummaryTool::class);
+                $registry->tool(GetQueueStatusTool::class);
+                $registry->tool(GetFailedJobsTool::class);
+                $registry->tool(GetSchedulerStatusTool::class);
             }
         });
     }

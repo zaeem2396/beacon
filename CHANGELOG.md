@@ -2,11 +2,29 @@
 
 ## Unreleased
 
+### Added
+
+- `beacon.get_runtime_info` and `php artisan beacon:runtime` report PHP and Laravel runtime facts plus allowlisted drivers. Capability: `runtime`.
+- `beacon.get_recent_exceptions` and `php artisan beacon:exceptions` read recent exceptions from supported file log channels. Capability: `exceptions`.
+- `beacon.get_error_aggregates`, `beacon.get_error_summary`, and `php artisan beacon:errors` group exceptions for the inspected window only. Capabilities: `error_aggregate`, `error_summary`.
+- `beacon.get_log_summary` and `php artisan beacon:logs` summarize supported file log channels. Capability: `logs`.
+- `beacon.get_queue_status` and `php artisan beacon:queues` report queue configuration and safely observable backend state. Capability: `queue`.
+- `beacon.get_failed_jobs` and `php artisan beacon:failed-jobs` report failed jobs without payloads. Capability: `failed_jobs`.
+- `beacon.get_scheduler_status` and `php artisan beacon:scheduler` list scheduled task definitions without executing them. Capability: `scheduler`.
+
+### Security
+
+- Runtime, exception, log, queue, failed-job, and scheduler capabilities are default-deny and independent.
+- Log and exception reads are confined to configured file channels under `storage/logs`.
+- Failed-job inspection never selects or deserializes payloads and never retries jobs.
+- Scheduler inspection never runs scheduled tasks.
+- Request intelligence, slow request detection, and AI investigation context are not in this work.
+
 ## v0.2.0 — 2026-11-14
 
 Database Intelligence. Beacon can report the default connection, inspect MySQL and MariaDB schema metadata, compare migration files with the repository, classify static migration risk, and compare normalized schema snapshots. Findings are heuristic. Beacon does not execute migration PHP or SQL, read table rows, modify schemas, or prove that a deployment will fail.
 
-Runtime error intelligence, queue intelligence, and deployment intelligence are not in this release. They remain later roadmap items.
+Runtime error intelligence, deeper queue worker inspection, and deployment intelligence remain later roadmap items.
 
 The reported Beacon version still comes from Composer's installed-package metadata. A `v0.2.0` install reports `v0.2.0`. A branch install reports that branch, such as `dev-main`.
 

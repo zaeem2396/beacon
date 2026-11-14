@@ -8,10 +8,17 @@ use Beacon\Console\Commands\ApplicationCommand;
 use Beacon\Console\Commands\BeaconCommand;
 use Beacon\Console\Commands\CheckCommand;
 use Beacon\Console\Commands\DatabaseCommand;
+use Beacon\Console\Commands\ErrorsCommand;
+use Beacon\Console\Commands\ExceptionsCommand;
+use Beacon\Console\Commands\FailedJobsCommand;
 use Beacon\Console\Commands\HealthCommand;
 use Beacon\Console\Commands\InstallCommand;
+use Beacon\Console\Commands\LogsCommand;
 use Beacon\Console\Commands\MigrationRisksCommand;
 use Beacon\Console\Commands\MigrationsCommand;
+use Beacon\Console\Commands\QueuesCommand;
+use Beacon\Console\Commands\RuntimeCommand;
+use Beacon\Console\Commands\SchedulerCommand;
 use Beacon\Console\Commands\SchemaCommand;
 use Beacon\Console\Commands\SchemaCompareCommand;
 use Beacon\Console\Commands\SchemaSnapshotCommand;
@@ -33,18 +40,30 @@ use Beacon\Inspectors\ApplicationInspector;
 use Beacon\Inspectors\ConfigurationInspector;
 use Beacon\Inspectors\DatabaseInspector;
 use Beacon\Inspectors\EnvironmentInspector;
+use Beacon\Inspectors\ErrorAggregateInspector;
+use Beacon\Inspectors\ErrorSummaryInspector;
+use Beacon\Inspectors\ExceptionInspector;
+use Beacon\Inspectors\FailedJobsInspector;
 use Beacon\Inspectors\HealthInspector;
+use Beacon\Inspectors\LogSummaryInspector;
 use Beacon\Inspectors\MigrationInspector;
 use Beacon\Inspectors\MigrationRiskInspector;
+use Beacon\Inspectors\QueueInspector;
 use Beacon\Inspectors\RouteInspector;
+use Beacon\Inspectors\RuntimeInspector;
+use Beacon\Inspectors\SchedulerInspector;
 use Beacon\Inspectors\SchemaComparisonInspector;
 use Beacon\Inspectors\SchemaInspector;
 use Beacon\Inspectors\SchemaSnapshotInspector;
+use Beacon\Logs\ExceptionCollector;
+use Beacon\Logs\LogFiles;
+use Beacon\Logs\LogReader;
 use Beacon\Mcp\BeaconMcpServiceProvider;
 use Beacon\Migrations\MigrationFiles;
 use Beacon\Migrations\MigrationHistory;
 use Beacon\Migrations\MigrationScanner;
 use Beacon\Migrations\RepositoryHistory;
+use Beacon\QueueIntelligence\FailedJobReader;
 use Beacon\Schema\InformationSchemaReader;
 use Beacon\Schema\SchemaReader;
 use Beacon\Security\BearerTokenAuthenticator;
@@ -52,7 +71,9 @@ use Beacon\Security\CapabilityAuthorizer;
 use Beacon\Security\CapabilityPolicy;
 use Beacon\Security\CapabilityRegistry;
 use Beacon\Security\KeyPatternRedactor;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Redis\Factory as RedisFactory;
 use Illuminate\Support\ServiceProvider;
 
 final class BeaconServiceProvider extends ServiceProvider
@@ -87,6 +108,19 @@ final class BeaconServiceProvider extends ServiceProvider
         $this->app->singleton(SchemaReader::class, InformationSchemaReader::class);
         $this->app->singleton(MigrationScanner::class, MigrationFiles::class);
         $this->app->singleton(MigrationHistory::class, RepositoryHistory::class);
+        $this->app->singleton(LogFiles::class);
+        $this->app->singleton(LogReader::class);
+        $this->app->singleton(ExceptionCollector::class);
+        $this->app->singleton(FailedJobReader::class);
+        $this->app->singleton(QueueInspector::class, static function (Application $app): QueueInspector {
+            $config = $app->make('config');
+
+            return new QueueInspector(
+                $config instanceof ConfigRepository ? $config : $app->make(ConfigRepository::class),
+                $app->make(FailedJobReader::class),
+                $app->bound(RedisFactory::class) ? $app->make(RedisFactory::class) : null,
+            );
+        });
 
         $this->callAfterResolving(InspectorRegistry::class, static function (InspectorRegistry $inspectors): void {
             $inspectors->register(ApplicationInspector::NAME, ApplicationInspector::class);
@@ -100,6 +134,14 @@ final class BeaconServiceProvider extends ServiceProvider
             $inspectors->register(MigrationRiskInspector::NAME, MigrationRiskInspector::class);
             $inspectors->register(SchemaSnapshotInspector::NAME, SchemaSnapshotInspector::class);
             $inspectors->register(SchemaComparisonInspector::NAME, SchemaComparisonInspector::class);
+            $inspectors->register(RuntimeInspector::NAME, RuntimeInspector::class);
+            $inspectors->register(ExceptionInspector::NAME, ExceptionInspector::class);
+            $inspectors->register(ErrorAggregateInspector::NAME, ErrorAggregateInspector::class);
+            $inspectors->register(ErrorSummaryInspector::NAME, ErrorSummaryInspector::class);
+            $inspectors->register(LogSummaryInspector::NAME, LogSummaryInspector::class);
+            $inspectors->register(QueueInspector::NAME, QueueInspector::class);
+            $inspectors->register(FailedJobsInspector::NAME, FailedJobsInspector::class);
+            $inspectors->register(SchedulerInspector::NAME, SchedulerInspector::class);
         });
 
         $this->app->register(BeaconMcpServiceProvider::class);
@@ -122,6 +164,13 @@ final class BeaconServiceProvider extends ServiceProvider
                 MigrationRisksCommand::class,
                 SchemaSnapshotCommand::class,
                 SchemaCompareCommand::class,
+                RuntimeCommand::class,
+                ExceptionsCommand::class,
+                ErrorsCommand::class,
+                LogsCommand::class,
+                QueuesCommand::class,
+                FailedJobsCommand::class,
+                SchedulerCommand::class,
                 CheckCommand::class,
                 InstallCommand::class,
             ]);

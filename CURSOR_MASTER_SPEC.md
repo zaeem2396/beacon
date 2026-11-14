@@ -533,62 +533,61 @@ Exit `0` for `beacon:schema-compare` means the report was printed. Exit `1` is d
 
 ---
 
+## `beacon.get_runtime_info`
+
+Implemented. Also available as `php artisan beacon:runtime`. Requires `runtime`.
+
+Reports PHP version, SAPI, OS family, allowlisted extensions, memory and upload limits, Laravel version, environment, debug, timezone, locale, boot and maintenance state, and allowlisted cache, session, queue, filesystem, logging, and database drivers. Credentials and full configuration dumps are not returned. Backend reachability is not probed.
+
+---
+
 ## `beacon.get_recent_exceptions`
 
-Return sanitized recent application errors.
+Implemented. Also available as `php artisan beacon:exceptions`. Requires `exceptions`.
 
-Each error should contain useful context such as:
+Reads supported file-based Laravel log channels under `storage/logs` only. Returns sanitized exception class, message, category, severity, timestamp, channel, basename file, line, and bounded stack frames. Credentials, headers, cookies, and request bodies are not returned. Remote Monolog handlers are unsupported.
 
-```text
-id
-timestamp
-exception class
-message
-route
-HTTP status
-request context
-job context
-frequency
-```
+---
 
-Do not expose:
+## `beacon.get_error_aggregates` / `beacon.get_error_summary`
 
-* credentials
-* authorization headers
-* cookies
-* secrets
-* arbitrary request bodies
+Implemented. Also available as `php artisan beacon:errors`. Require `error_aggregate` or `error_summary`.
+
+Groups the inspected exception window by a stable fingerprint from class, normalized message, category, and source location. Occurrence counts cover only that window. Persistent telemetry storage is not used.
+
+---
+
+## `beacon.get_log_summary`
+
+Implemented. Also available as `php artisan beacon:logs`. Requires `logs`.
+
+Summarizes supported file log channels with level and channel counts, error and critical counts, window bounds, parse failures, and truncation status.
 
 ---
 
 ## `beacon.get_failed_jobs`
 
-Return:
+Implemented. Also available as `php artisan beacon:failed-jobs`. Requires `failed_jobs`.
 
-* queue
-* failed job identifier
-* job class
-* timestamp
-* exception information
-* retry information where available
-
-Do not expose arbitrary job payloads.
+Returns failed job id, connection, queue, exception class, sanitized exception summary, and failure time from database failed-job repositories. Payloads are never selected, deserialized, or retried.
 
 ---
 
 ## `beacon.get_queue_status`
 
-Return:
+Implemented. Also available as `php artisan beacon:queues`. Requires `queue`.
 
-* queue driver
-* queues
-* backlog where available
-* worker status where available
-* Horizon status where applicable
+Returns default connection, configured connections, driver, retry settings, Redis pending counts where available, failed-job count when readable, and an explicit note that workers were not inspected. Horizon is not required. Configuration is not treated as proof that workers are running.
 
-Horizon must be optional.
+---
 
-Beacon must not require Horizon.
+## `beacon.get_scheduler_status`
+
+Implemented. Also available as `php artisan beacon:scheduler`. Requires `scheduler`.
+
+Lists registered scheduled task definitions. Tasks are not executed. Execution history is reported as unavailable when no reliable source exists.
+
+Request intelligence, slow request detection, and AI investigation context are not implemented.
 
 ---
 
@@ -610,9 +609,14 @@ beacon.get_migrations
 beacon.analyze_migration_risks
 beacon.create_schema_snapshot
 beacon.compare_schema_snapshots
+beacon.get_runtime_info
 beacon.get_recent_exceptions
-beacon.get_failed_jobs
+beacon.get_error_aggregates
+beacon.get_error_summary
+beacon.get_log_summary
 beacon.get_queue_status
+beacon.get_failed_jobs
+beacon.get_scheduler_status
 ```
 
 Avoid vague names such as:
