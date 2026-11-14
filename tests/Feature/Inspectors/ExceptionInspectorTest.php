@@ -48,6 +48,50 @@ final class ExceptionInspectorTest extends TestCase
         $this->application()->make(Beacon::class)->inspect(Principal::local(), ExceptionInspector::NAME);
     }
 
+    #[Test]
+    public function later_pages_return_later_exceptions(): void
+    {
+        $lines = [];
+
+        for ($i = 1; $i <= 5; $i++) {
+            $minute = str_pad((string) $i, 2, '0', STR_PAD_LEFT);
+            $lines[] = "[2026-11-14 12:{$minute}:00] local.ERROR: RuntimeException: page-case-{$i}";
+        }
+
+        file_put_contents($this->logPath, implode("\n", $lines) . "\n");
+        config()->set('beacon.security.allowed_capabilities', ['exceptions']);
+
+        $pageOne = $this->application()->make(ExceptionInspector::class)->inspect([
+            'limit' => 2,
+            'page' => 1,
+        ]);
+        $pageTwo = $this->application()->make(ExceptionInspector::class)->inspect([
+            'limit' => 2,
+            'page' => 2,
+        ]);
+
+        $this->assertInstanceOf(ExceptionInspection::class, $pageOne);
+        $this->assertInstanceOf(ExceptionInspection::class, $pageTwo);
+        $this->assertSame(2, $pageOne->returned);
+        $this->assertSame(2, $pageTwo->returned);
+        $this->assertNotSame($pageOne->exceptions[0]->exceptionId, $pageTwo->exceptions[0]->exceptionId);
+        $this->assertStringContainsString('page-case', $pageTwo->exceptions[0]->message);
+    }
+
+    #[Test]
+    public function plain_error_lines_are_not_invented_as_runtime_exceptions(): void
+    {
+        file_put_contents(
+            $this->logPath,
+            "[2026-11-14 12:00:00] local.ERROR: payment failed without a throwable class\n",
+        );
+        config()->set('beacon.security.allowed_capabilities', ['exceptions']);
+
+        $inspection = $this->application()->make(ExceptionInspector::class)->inspect();
+        $this->assertInstanceOf(ExceptionInspection::class, $inspection);
+        $this->assertSame(0, $inspection->returned);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

@@ -31,19 +31,18 @@ final class ExceptionCollector
      */
     public function collect(ExceptionQuery $query): array
     {
-        $read = $this->reader->read($query->channel, $query->scanLimit(), LogFiles::MAX_BYTES);
+        $needed = $query->scanLimit();
+        $read = $this->reader->read($query->channel, $needed, LogFiles::MAX_BYTES);
         $records = [];
+        $capped = false;
 
         foreach ($read['records'] as $log) {
-            if ($log->exceptionClass === null && $log->level->rank() < LogLevel::Error->rank()) {
+            $class = $log->exceptionClass ?? $this->classFromMessage($log->message);
+
+            if ($class === null) {
                 continue;
             }
 
-            if ($log->exceptionClass === null && ! $this->looksLikeException($log->message)) {
-                continue;
-            }
-
-            $class = $log->exceptionClass ?? 'RuntimeException';
             $message = $log->exceptionMessage ?? $log->message;
             $category = $this->classifier->classify($class, $message);
 
@@ -71,14 +70,16 @@ final class ExceptionCollector
                 traceFrames: $log->traceFrames,
             );
 
-            if (count($records) >= $query->limit) {
+            if (count($records) >= $needed) {
+                $capped = true;
+
                 break;
             }
         }
 
         return [
             'records' => $records,
-            'truncated' => $read['truncated'] || count($read['records']) > count($records) && count($records) >= $query->limit,
+            'truncated' => $read['truncated'] || $capped,
             'bytes_read' => $read['bytes_read'],
             'parse_failures' => $read['parse_failures'],
             'files' => $read['files'],
@@ -86,8 +87,14 @@ final class ExceptionCollector
         ];
     }
 
-    private function looksLikeException(string $message): bool
+    private function classFromMessage(string $message): ?string
     {
-        return preg_match('/Exception|Error:/', $message) === 1;
+        if (preg_match('/\b([A-Za-z_][A-Za-z0-9_\\\\]*(?:Exception|Error))\b/', $message, $match) !== 1) {
+            return null;
+        }
+
+        $class = ltrim($match[1], '\\');
+
+        return preg_match('/^[A-Za-z_][A-Za-z0-9_\\\\]{0,190}$/', $class) === 1 ? $class : null;
     }
 }

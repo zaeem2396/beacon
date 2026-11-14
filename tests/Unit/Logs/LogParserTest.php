@@ -34,4 +34,22 @@ final class LogParserTest extends TestCase
         $this->assertSame('OrderService.php', $parsed['records'][0]->file);
         $this->assertStringNotContainsString('/var/www', (string) $parsed['records'][0]->file);
     }
+
+    #[Test]
+    public function naive_timestamps_use_the_process_timezone_then_utc(): void
+    {
+        $previous = date_default_timezone_get();
+        date_default_timezone_set('America/New_York');
+
+        try {
+            $parsed = (new LogParser())->parse(
+                "[2026-11-14 12:00:00] local.ERROR: RuntimeException: boom\n",
+                'single',
+            );
+
+            $this->assertSame('2026-11-14T17:00:00+00:00', $parsed['records'][0]->timestamp);
+        } finally {
+            date_default_timezone_set($previous);
+        }
+    }
 }

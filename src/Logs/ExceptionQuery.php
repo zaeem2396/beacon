@@ -183,16 +183,18 @@ final class ExceptionQuery
 
     private function normalize(string $value): string
     {
-        $value = str_replace(' ', 'T', $value);
-
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1) {
-            return $value . 'T00:00:00+00:00';
+            $value .= ' 00:00:00';
         }
 
-        if (! str_contains($value, '+') && ! str_ends_with($value, 'Z')) {
-            return $value . '+00:00';
-        }
+        $value = str_replace('T', ' ', str_replace('Z', '+00:00', $value));
 
-        return str_replace('Z', '+00:00', $value);
+        try {
+            return (new \DateTimeImmutable($value))
+                ->setTimezone(new \DateTimeZone('UTC'))
+                ->format('Y-m-d\\TH:i:sP');
+        } catch (\Throwable) {
+            return str_replace(' ', 'T', $value);
+        }
     }
 }

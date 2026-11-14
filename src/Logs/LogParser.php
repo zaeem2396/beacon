@@ -84,7 +84,7 @@ final class LogParser
         }
 
         return new LogRecord(
-            timestamp: str_replace(' ', 'T', $current['timestamp']) . '+00:00',
+            timestamp: $this->toUtc($current['timestamp']),
             level: $current['level'],
             channel: $current['channel'] !== '' ? $current['channel'] : $fallbackChannel,
             message: $message,
@@ -96,6 +96,21 @@ final class LogParser
             traceTruncated: $extracted['trace_truncated'],
             traceFrames: $extracted['trace_frames'],
         );
+    }
+
+    /**
+     * Laravel file logs omit a timezone. Interpret the stamp in the process
+     * timezone (Laravel sets that from app.timezone) and emit UTC.
+     */
+    private function toUtc(string $timestamp): string
+    {
+        $parsed = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $timestamp);
+
+        if ($parsed === false) {
+            return str_replace(' ', 'T', $timestamp) . '+00:00';
+        }
+
+        return $parsed->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\\TH:i:sP');
     }
 
     /**
