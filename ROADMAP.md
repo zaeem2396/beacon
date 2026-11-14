@@ -87,8 +87,13 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 
 | Module                   | Prompt                                                                                                                                                                                 | Status |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Recent exceptions        | Expose recent application exceptions in a sanitized structured format. Include timestamps, exception type, message, endpoint/job context and useful metadata without exposing secrets. | 🔴     |
-| Error aggregation        | Group similar exceptions so an AI agent can reason about frequency and patterns rather than receiving hundreds of duplicate errors.                                                    | 🔴     |
+| Runtime inspection       | Expose PHP and Laravel runtime facts plus allowlisted non-secret drivers without dumping configuration or credentials.                                                                | 🟢 Done |
+| Recent exceptions        | Expose recent application exceptions in a sanitized structured format. Include timestamps, exception type, message, endpoint/job context and useful metadata without exposing secrets. | 🟢 Done |
+| Error aggregation        | Group similar exceptions so an AI agent can reason about frequency and patterns rather than receiving hundreds of duplicate errors.                                                    | 🟢 Done |
+| Log intelligence         | Summarize supported file-based Laravel log channels with bounded reads and redaction.                                                                                                  | 🟢 Done |
+| Queue status             | Inspect queue configuration and safely observable backend state without treating configuration as proof that workers are running.                                                      | 🟢 Done |
+| Failed jobs              | Expose failed job metadata without payloads, deserialization, or retries.                                                                                                              | 🟢 Done |
+| Scheduler inspection     | List registered scheduled task definitions without executing tasks.                                                                                                                    | 🟢 Done |
 | Request intelligence     | Provide recent request information including endpoint, status, latency and relevant performance indicators where available.                                                            | 🔴     |
 | Slow request detection   | Identify unusually slow requests and provide enough context for AI investigation.                                                                                                      | 🔴     |
 | AI investigation context | Build a normalized investigation context that combines errors, requests, deployments, database activity and configuration changes.                                                     | 🔴     |
@@ -99,9 +104,9 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 
 | Module                    | Prompt                                                                                                                  | Status |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------ |
-| Queue health              | Inspect configured queue connections and determine whether queues appear healthy.                                       | 🔴     |
-| Failed jobs               | Expose failed job counts, recent failures, queue names and safe job metadata. Sensitive payload data must be sanitized. | 🔴     |
-| Queue latency             | Detect queue backlog and latency where the underlying queue driver provides enough information.                         | 🔴     |
+| Queue health              | Inspect configured queue connections and determine whether queues appear healthy.                                       | 🟢 Done |
+| Failed jobs               | Expose failed job counts, recent failures, queue names and safe job metadata. Sensitive payload data must be sanitized. | 🟢 Done |
+| Queue latency             | Detect queue backlog and latency where the underlying queue driver provides enough information.                         | 🟡     |
 | Worker inspection         | Expose worker/Horizon status where available without requiring Horizon as a dependency.                                 | 🔴     |
 | Job failure investigation | Allow AI to correlate failed jobs with application exceptions, deployments and configuration changes.                   | 🔴     |
 
