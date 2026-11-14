@@ -197,7 +197,13 @@ final class LogParser
     private function frame(string $frame): string
     {
         $frame = preg_replace('/\([^)]*\)/', '()', $frame) ?? $frame;
-        $frame = preg_replace('#(/[^\s:]+)+#', basename(str_replace('\\', '/', $frame)), $frame) ?? $frame;
+        $frame = preg_replace_callback(
+            '#(?:[A-Za-z]:)?(?:/|\\\\)[^\s:]+#',
+            static function (array $match): string {
+                return basename(str_replace('\\', '/', $match[0]));
+            },
+            $frame,
+        ) ?? $frame;
 
         return $frame;
     }
