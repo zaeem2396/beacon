@@ -15,6 +15,7 @@ use Laravel\Mcp\Transport\JsonRpcResponse;
 
 final class BeaconServer extends Server
 {
+    public int $defaultPaginationLength = 50;
     protected string $name = 'Laravel Beacon';
 
     protected string $instructions = <<<'MARKDOWN'

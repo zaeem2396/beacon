@@ -27,6 +27,13 @@ final class BeaconCommandTest extends TestCase
         $this->assertArrayHasKey('beacon:migration-risks', $commands);
         $this->assertArrayHasKey('beacon:schema-snapshot', $commands);
         $this->assertArrayHasKey('beacon:schema-compare', $commands);
+        $this->assertArrayHasKey('beacon:runtime', $commands);
+        $this->assertArrayHasKey('beacon:exceptions', $commands);
+        $this->assertArrayHasKey('beacon:errors', $commands);
+        $this->assertArrayHasKey('beacon:logs', $commands);
+        $this->assertArrayHasKey('beacon:queues', $commands);
+        $this->assertArrayHasKey('beacon:failed-jobs', $commands);
+        $this->assertArrayHasKey('beacon:scheduler', $commands);
     }
 
     #[Test]
@@ -66,7 +73,7 @@ final class BeaconCommandTest extends TestCase
     #[Test]
     public function every_command_provides_help(): void
     {
-        foreach (['beacon', 'beacon:application', 'beacon:install', 'beacon:check', 'beacon:health', 'beacon:database', 'beacon:schema', 'beacon:migrations', 'beacon:migration-risks', 'beacon:schema-snapshot', 'beacon:schema-compare'] as $command) {
+        foreach (['beacon', 'beacon:application', 'beacon:install', 'beacon:check', 'beacon:health', 'beacon:database', 'beacon:schema', 'beacon:migrations', 'beacon:migration-risks', 'beacon:schema-snapshot', 'beacon:schema-compare', 'beacon:runtime', 'beacon:exceptions', 'beacon:errors', 'beacon:logs', 'beacon:queues', 'beacon:failed-jobs', 'beacon:scheduler'] as $command) {
             $this->assertSame(0, Artisan::call('help', ['command_name' => $command]));
             $this->assertStringContainsString('Help:', Artisan::output(), $command);
         }

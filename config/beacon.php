@@ -83,7 +83,9 @@ return [
     | registered capability.
     |
     | Available: application, environment, routes, config, database, schema,
-    | migrations, migration_risk, schema_snapshot, schema_compare, exceptions, queue, health. Unregistered names are ignored.
+    | migrations, migration_risk, schema_snapshot, schema_compare, runtime,
+    | exceptions, error_aggregate, error_summary, logs, queue, failed_jobs,
+    | scheduler, health. Unregistered names are ignored.
     | Beacon v0.x is read-only: mutating capabilities are always denied and
     | cannot be enabled here.
     |
@@ -256,8 +258,14 @@ return [
         'migration_risk' => ['enabled' => true],
         'schema_snapshot' => ['enabled' => true],
         'schema_compare' => ['enabled' => true],
+        'runtime' => ['enabled' => true],
         'exceptions' => ['enabled' => true],
+        'error_aggregate' => ['enabled' => true],
+        'error_summary' => ['enabled' => true],
+        'logs' => ['enabled' => true],
         'queue' => ['enabled' => true],
+        'failed_jobs' => ['enabled' => true],
+        'scheduler' => ['enabled' => true],
         'health' => ['enabled' => true],
     ],
 

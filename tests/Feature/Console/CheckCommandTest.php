@@ -61,7 +61,7 @@ final class CheckCommandTest extends TestCase
         [, $report] = $this->check();
 
         $this->assertSame('pass', $this->statusOf($report, 'inspectors'));
-        $this->assertSame('Enabled: application, environment, routes, config, health, database, schema, migrations, migration_risk, schema_snapshot, schema_compare.', $this->messageOf($report, 'inspectors'));
+        $this->assertSame('Enabled: application, environment, routes, config, health, database, schema, migrations, migration_risk, schema_snapshot, schema_compare, runtime, exceptions, error_aggregate, error_summary, logs, queue, failed_jobs, scheduler.', $this->messageOf($report, 'inspectors'));
     }
 
     #[Test]
@@ -78,6 +78,14 @@ final class CheckCommandTest extends TestCase
         config()->set('beacon.inspectors.migration_risk.enabled', false);
         config()->set('beacon.inspectors.schema_snapshot.enabled', false);
         config()->set('beacon.inspectors.schema_compare.enabled', false);
+        config()->set('beacon.inspectors.runtime.enabled', false);
+        config()->set('beacon.inspectors.exceptions.enabled', false);
+        config()->set('beacon.inspectors.error_aggregate.enabled', false);
+        config()->set('beacon.inspectors.error_summary.enabled', false);
+        config()->set('beacon.inspectors.logs.enabled', false);
+        config()->set('beacon.inspectors.queue.enabled', false);
+        config()->set('beacon.inspectors.failed_jobs.enabled', false);
+        config()->set('beacon.inspectors.scheduler.enabled', false);
 
         [$exitCode, $report] = $this->check();
 
