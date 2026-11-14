@@ -11,14 +11,19 @@
 - `beacon.get_queue_status` and `php artisan beacon:queues` report queue configuration and safely observable backend state. Capability: `queue`.
 - `beacon.get_failed_jobs` and `php artisan beacon:failed-jobs` report failed jobs without payloads. Capability: `failed_jobs`.
 - `beacon.get_scheduler_status` and `php artisan beacon:scheduler` list scheduled task definitions without executing them. Capability: `scheduler`.
+- `beacon.get_recent_requests` and `php artisan beacon:requests` read opt-in HTTP request observations from Beacon storage. Capability: `requests`.
+- `beacon.get_request_summary` and `php artisan beacon:request-summary` summarize the inspected request window. Capability: `request_summary`.
+- `php artisan beacon:requests-prune` deletes old Beacon request rows using `beacon.requests.retention_hours`. Maintenance only; does not require the `requests` capability.
+- Publishable `beacon-migrations` tag for the dedicated `beacon_requests` table. Collection stays off until `BEACON_REQUESTS_COLLECTION=true`.
 
 ### Security
 
-- Runtime, exception, log, queue, failed-job, and scheduler capabilities are default-deny and independent.
+- Runtime, exception, log, queue, failed-job, scheduler, and request capabilities are default-deny and independent.
 - Log and exception reads are confined to configured file channels under `storage/logs`.
 - Failed-job inspection never selects or deserializes payloads and never retries jobs.
 - Scheduler inspection never runs scheduled tasks.
-- Request intelligence, slow request detection, and AI investigation context are not in this work.
+- Request collection never stores bodies, cookies, Authorization headers, or query strings. Middleware registration alone does not collect.
+- Slow request detection and AI investigation context are not in this work.
 
 ## v0.2.0 — 2026-11-14
 

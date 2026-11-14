@@ -237,6 +237,40 @@ final class BeaconConfig
         return $this->stringList('beacon.migration_risk.connections');
     }
 
+    /**
+     * Whether HTTP request collection middleware may write observations.
+     * Disabled by default. Registration alone does not collect.
+     */
+    public function requestCollectionEnabled(): bool
+    {
+        return $this->bool('beacon.requests.collection.enabled', false);
+    }
+
+    /**
+     * Whether Beacon appends request middleware to the web and api groups.
+     * Default true. Collection still requires requestCollectionEnabled.
+     */
+    public function requestMiddlewareEnabled(): bool
+    {
+        return $this->bool('beacon.requests.middleware', true);
+    }
+
+    /**
+     * Hours to retain request observations. Bounded from 1 to 720. Default 168.
+     */
+    public function requestRetentionHours(): int
+    {
+        $value = $this->config->get('beacon.requests.retention_hours', 168);
+
+        if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+            return 168;
+        }
+
+        $hours = (int) $value;
+
+        return $hours < 1 || $hours > 720 ? 168 : $hours;
+    }
+
     public function healthCacheEnabled(): bool
     {
         return $this->bool('beacon.health.cache.enabled', false);

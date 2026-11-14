@@ -94,7 +94,7 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 | Queue status             | Inspect queue configuration and safely observable backend state without treating configuration as proof that workers are running.                                                      | 🟢 Done |
 | Failed jobs              | Expose failed job metadata without payloads, deserialization, or retries.                                                                                                              | 🟢 Done |
 | Scheduler inspection     | List registered scheduled task definitions without executing tasks.                                                                                                                    | 🟢 Done |
-| Request intelligence     | Provide recent request information including endpoint, status, latency and relevant performance indicators where available.                                                            | 🔴     |
+| Request intelligence     | Provide recent request information including endpoint, status, latency and relevant performance indicators where available.                                                            | 🟢 Done |
 | Slow request detection   | Identify unusually slow requests and provide enough context for AI investigation.                                                                                                      | 🔴     |
 | AI investigation context | Build a normalized investigation context that combines errors, requests, deployments, database activity and configuration changes.                                                     | 🔴     |
 

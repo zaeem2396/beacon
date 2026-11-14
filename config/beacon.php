@@ -85,7 +85,7 @@ return [
     | Available: application, environment, routes, config, database, schema,
     | migrations, migration_risk, schema_snapshot, schema_compare, runtime,
     | exceptions, error_aggregate, error_summary, logs, queue, failed_jobs,
-    | scheduler, health. Unregistered names are ignored.
+    | scheduler, requests, request_summary, health. Unregistered names are ignored.
     | Beacon v0.x is read-only: mutating capabilities are always denied and
     | cannot be enabled here.
     |
@@ -225,6 +225,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Request intelligence
+    |--------------------------------------------------------------------------
+    |
+    | HTTP request collection is off by default. Enable it only after publishing
+    | and running the Beacon requests migration. Beacon does not migrate for you.
+    | retention_hours bounds cleanup for php artisan beacon:requests-prune.
+    |
+    */
+
+    'requests' => [
+        'collection' => [
+            'enabled' => env('BEACON_REQUESTS_COLLECTION', false),
+        ],
+        'connection' => env('BEACON_REQUESTS_CONNECTION'),
+        'retention_hours' => env('BEACON_REQUESTS_RETENTION_HOURS', 168),
+        'middleware' => env('BEACON_REQUESTS_MIDDLEWARE', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Inspectors
     |--------------------------------------------------------------------------
     |
@@ -266,6 +286,8 @@ return [
         'queue' => ['enabled' => true],
         'failed_jobs' => ['enabled' => true],
         'scheduler' => ['enabled' => true],
+        'requests' => ['enabled' => true],
+        'request_summary' => ['enabled' => true],
         'health' => ['enabled' => true],
     ],
 

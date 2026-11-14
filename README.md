@@ -2,7 +2,7 @@
 
 Laravel Beacon gives AI agents safe, structured information about a Laravel application over MCP.
 
-> **Status:** Runtime and error intelligence are implemented on top of [v0.2.0 Database Intelligence](CHANGELOG.md): runtime facts, recent exceptions, error aggregation, log summaries, queue status, failed jobs, and scheduler definitions. It is early development. It is not a monitoring product and it does not find root causes. Request intelligence, slow request detection, and AI investigation context are not implemented. See [ROADMAP.md](ROADMAP.md).
+> **Status:** Request intelligence is implemented on top of runtime and error intelligence and [v0.2.0 Database Intelligence](CHANGELOG.md): opt-in HTTP request observations, request summaries, runtime facts, recent exceptions, error aggregation, log summaries, queue status, failed jobs, and scheduler definitions. It is early development. It is not a monitoring product and it does not find root causes. Slow request detection and AI investigation context are not implemented. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -216,6 +216,31 @@ php artisan beacon:scheduler --json
 
 Prints the same report as [`beacon.get_scheduler_status`](#beaconget_scheduler_status). It requires the `scheduler` capability. Tasks are not executed.
 
+### `beacon:requests`
+
+```bash
+php artisan beacon:requests --json
+php artisan beacon:requests --method=GET --limit=25
+```
+
+Prints the same report as [`beacon.get_recent_requests`](#beaconget_recent_requests). It requires the `requests` capability. Collection stays off until `BEACON_REQUESTS_COLLECTION=true` after publishing and running the Beacon requests migration (`beacon-migrations` tag). Bodies, cookies, Authorization headers, and query strings are never stored or printed.
+
+### `beacon:request-summary`
+
+```bash
+php artisan beacon:request-summary --json
+```
+
+Prints the same report as [`beacon.get_request_summary`](#beaconget_request_summary). It requires the `request_summary` capability. Allowing only `requests` does not allow this command.
+
+### `beacon:requests-prune`
+
+```bash
+php artisan beacon:requests-prune --json
+```
+
+Deletes Beacon request observations older than `beacon.requests.retention_hours` (default 168). This is a maintenance command for Beacon storage only. It does not require the `requests` capability and does not modify application business tables.
+
 ### `beacon:install`
 
 ```bash
@@ -224,6 +249,7 @@ php artisan beacon:install
 
 - Publishes `config/beacon.php` (the `beacon-config` publish tag) if it does not exist yet.
 - **Never overwrites an existing file** and is safe to run repeatedly. To replace your configuration deliberately, run `php artisan vendor:publish --tag=beacon-config --force`.
+- Mentions the `beacon-migrations` publish tag and `BEACON_REQUESTS_COLLECTION` for opt-in request intelligence, plus the new `requests` / `request_summary` capabilities and related Artisan commands.
 - **Does not edit `.env`, generate tokens, enable MCP or expose an HTTP endpoint.** It prints the variables you need to set yourself:
 
 ```text
@@ -515,7 +541,7 @@ What an authenticated client may do is decided separately; see [Authorization an
 - **Tokens do not expire.** They stay valid until you rotate them.
 - **No built-in rate limiting.** A 32+ character random token cannot realistically be guessed, but you can add Laravel's `throttle` middleware in front of the endpoint if you need request limits.
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
-- **Nineteen tools, no resources or prompts.** The server exposes application, environment, route, config, health, database, schema, migration, schema-comparison, runtime, exception, error-aggregation, log, queue, failed-job, and scheduler tools. Request intelligence is not included. Later tools follow the [roadmap](ROADMAP.md).
+- **Twenty-one tools, no resources or prompts.** The server exposes application, environment, route, config, health, database, schema, migration, schema-comparison, runtime, exception, error-aggregation, log, queue, failed-job, scheduler, and request-intelligence tools. Slow request detection and AI investigation context follow the [roadmap](ROADMAP.md).
 
 ## Authorization and the read-only model
 
@@ -545,9 +571,11 @@ Every operation that exposes application information requires exactly one capabi
 | `queue`       | Queue configuration and safely observable backend state |
 | `failed_jobs` | Failed job metadata without payloads |
 | `scheduler` | Registered scheduled task definitions, without executing tasks |
+| `requests` | Recent HTTP request observations, without bodies, cookies, or credentials |
+| `request_summary` | Request summary metrics for the inspected storage window |
 | `health`      | Application and infrastructure health results                 |
 
-`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. `schema` is used by [`beacon.get_database_schema`](#beaconget_database_schema). Allowing `database` does not allow schema inspection. `migrations` is used by [`beacon.get_migrations`](#beaconget_migrations). Allowing `database` or `schema` does not allow migration inspection. `migration_risk` is used by [`beacon.analyze_migration_risks`](#beaconanalyze_migration_risks). Allowing `migrations`, `database`, or `schema` does not allow risk analysis. When `schema` is also allowed, risk analysis may use schema metadata to refine findings. `schema_snapshot` is used by [`beacon.create_schema_snapshot`](#beaconcreate_schema_snapshot) and also requires `schema`. `schema_compare` is used by [`beacon.compare_schema_snapshots`](#beaconcompare_schema_snapshots). A live side of a comparison also requires `schema`. Allowing `schema` alone does not grant either tool. `runtime`, `exceptions`, `error_aggregate`, `error_summary`, `logs`, `queue`, `failed_jobs`, and `scheduler` are separate default-deny capabilities.
+`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. `schema` is used by [`beacon.get_database_schema`](#beaconget_database_schema). Allowing `database` does not allow schema inspection. `migrations` is used by [`beacon.get_migrations`](#beaconget_migrations). Allowing `database` or `schema` does not allow migration inspection. `migration_risk` is used by [`beacon.analyze_migration_risks`](#beaconanalyze_migration_risks). Allowing `migrations`, `database`, or `schema` does not allow risk analysis. When `schema` is also allowed, risk analysis may use schema metadata to refine findings. `schema_snapshot` is used by [`beacon.create_schema_snapshot`](#beaconcreate_schema_snapshot) and also requires `schema`. `schema_compare` is used by [`beacon.compare_schema_snapshots`](#beaconcompare_schema_snapshots). A live side of a comparison also requires `schema`. Allowing `schema` alone does not grant either tool. `runtime`, `exceptions`, `error_aggregate`, `error_summary`, `logs`, `queue`, `failed_jobs`, `scheduler`, `requests`, and `request_summary` are separate default-deny capabilities.
 
 ### Default deny
 
@@ -661,6 +689,8 @@ Every Beacon tool is read-only, requires exactly one capability, and runs only f
 | `beacon.get_queue_status` | `queue` | Queue configuration and safely observable backend state |
 | `beacon.get_failed_jobs` | `failed_jobs` | Failed jobs without payloads |
 | `beacon.get_scheduler_status` | `scheduler` | Registered scheduled task definitions |
+| `beacon.get_recent_requests` | `requests` | Recent HTTP request observations from opt-in Beacon storage |
+| `beacon.get_request_summary` | `request_summary` | Request summary metrics for the inspected storage window |
 
 ### `beacon.get_application_info`
 
@@ -1774,10 +1804,22 @@ Failed jobs from database failed-job repositories. Requires `failed_jobs`. Paylo
 
 Registered scheduled task definitions. Requires `scheduler`. Tasks are not executed. Execution history is reported as unavailable unless a reliable source exists.
 
+### `beacon.get_recent_requests`
+
+Recent HTTP request observations from opt-in Beacon request storage. Requires `requests`. Collection is off by default. Publish the `beacon-migrations` tag, run the migration, then set `BEACON_REQUESTS_COLLECTION=true`. Bodies, cookies, Authorization headers, and query strings are never stored or returned. Unmatched routes are reported as `unmatched`.
+
+### `beacon.get_request_summary`
+
+Request summary metrics for the same inspected storage window. Requires `request_summary`. Allowing only `requests` does not grant this tool. Counts cover only the inspected records.
+
+#### Request intelligence
+
+Request collection uses the `beacon.requests` middleware alias. When `beacon.requests.middleware` is true (default), Beacon appends the collector to the `web` and `api` groups. Registration alone does not collect. Writes happen only when collection is enabled and the `beacon_requests` table exists. Prune with `php artisan beacon:requests-prune`.
+
 #### Runtime and error limitations
 
-- Request intelligence, slow request detection, and AI investigation context are not implemented.
-- Aggregation does not add persistent telemetry storage.
+- Slow request detection and AI investigation context are not implemented.
+- Aggregation does not add persistent telemetry storage beyond opt-in request observations.
 - Database queue backlog counting and Horizon worker inspection are not complete in this release.
 
 ## Architecture
@@ -1794,7 +1836,8 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Beacon\Contracts`  | `Inspector`, `Analyzer`, `HealthCheck`, `Data`, `Redactor`, `Authorizer`, `Authenticator`, `RequiresCapability`                                      |
 | `Beacon\Core`       | `Beacon` (entry point), `InspectorRegistry`, `Payload` (output boundary), `BeaconConfig` (typed config), `Version` (installed version)                |
-| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, and inspection DTOs including runtime, exception, error, log, queue, failed-job, and scheduler results |
+| `Beacon\Data`       | `DataObject` base DTO, `Normalizer`, and inspection DTOs including runtime, exception, error, log, queue, failed-job, scheduler, and request results |
+| `Beacon\Requests`   | Opt-in HTTP request collection, sanitized observations, storage, query filters, and summary metrics |
 | `Beacon\Database`   | `ConnectionStatus`, `DatabaseVersion`, and the read-only status probe. Separate from the optional health database probe. |
 | `Beacon\Schema`     | Schema query validation, MySQL and MariaDB `information_schema` reads, and metadata normalization. Statements are fixed and checked before they run. |
 | `Beacon\Migrations` | Migration filename discovery, repository reads, and status classification. Files are not included or executed. |
@@ -1803,7 +1846,7 @@ Inspector  ──►  Data (DTO)  ──►  Analyzer  ──►  Payload  ─�
 | `Beacon\Runtime`    | Text sanitization for untrusted diagnostic strings. |
 | `Beacon\Logs`       | Bounded file log reading, exception collection, classification, fingerprinting, and aggregation. |
 | `Beacon\QueueIntelligence` | Queue status helpers and failed-job reads without payloads. |
-| `Beacon\Inspectors` | Built-in inspectors for application, environment, routes, config, health, database, schema, migrations, risk, snapshots, runtime, exceptions, errors, logs, queues, failed jobs, and scheduler |
+| `Beacon\Inspectors` | Built-in inspectors for application, environment, routes, config, health, database, schema, migrations, risk, snapshots, runtime, exceptions, errors, logs, queues, failed jobs, scheduler, and requests |
 | `Beacon\Security`   | `Capability`, `InspectionCapability`, `CapabilityRegistry`, `CapabilityPolicy`, `CapabilityAuthorizer`, `KeyPatternRedactor`, `UrlSanitizer`, `BearerTokenAuthenticator`, `Principal` |
 | `Beacon\Events`     | `AuthorizationEvaluated` (audit hook)                                                                                                               |
 | `Beacon\Health`     | `HealthStatus`, `HealthRunner`, `HealthChecks`, and the application, database, cache, and queue checks. Database and cache probes are separate from the checks. |

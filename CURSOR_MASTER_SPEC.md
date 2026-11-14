@@ -587,7 +587,23 @@ Implemented. Also available as `php artisan beacon:scheduler`. Requires `schedul
 
 Lists registered scheduled task definitions. Tasks are not executed. Execution history is reported as unavailable when no reliable source exists.
 
-Request intelligence, slow request detection, and AI investigation context are not implemented.
+---
+
+## `beacon.get_recent_requests`
+
+Implemented. Also available as `php artisan beacon:requests`. Requires `requests`.
+
+Returns recent HTTP request observations from opt-in Beacon storage (`beacon_requests`). Collection is off by default (`BEACON_REQUESTS_COLLECTION`). Publish migrations with the `beacon-migrations` tag and run them before enabling collection. Middleware may be registered without collecting. Never store or return bodies, cookies, Authorization headers, or query strings. Unmatched routes use the literal `unmatched` URI. Filters: since, until, method, route, status, min_duration_ms, had_exception, correlation_id, page, limit.
+
+---
+
+## `beacon.get_request_summary`
+
+Implemented. Also available as `php artisan beacon:request-summary`. Requires `request_summary`.
+
+Summarizes the same inspected request window with counts by status, method, and route plus duration metrics. Allowing only `requests` does not grant this tool. Counts are not historical trends.
+
+Slow request detection and AI investigation context are not implemented.
 
 ---
 
@@ -617,6 +633,8 @@ beacon.get_log_summary
 beacon.get_queue_status
 beacon.get_failed_jobs
 beacon.get_scheduler_status
+beacon.get_recent_requests
+beacon.get_request_summary
 ```
 
 Avoid vague names such as:
