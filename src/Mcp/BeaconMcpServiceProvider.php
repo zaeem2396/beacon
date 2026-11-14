@@ -20,6 +20,8 @@ use Beacon\Mcp\Tools\GetLogSummaryTool;
 use Beacon\Mcp\Tools\GetMigrationsTool;
 use Beacon\Mcp\Tools\GetQueueStatusTool;
 use Beacon\Mcp\Tools\GetRecentExceptionsTool;
+use Beacon\Mcp\Tools\GetRecentRequestsTool;
+use Beacon\Mcp\Tools\GetRequestSummaryTool;
 use Beacon\Mcp\Tools\GetRoutesTool;
 use Beacon\Mcp\Tools\GetRuntimeInfoTool;
 use Beacon\Mcp\Tools\GetSchedulerStatusTool;
@@ -60,6 +62,8 @@ final class BeaconMcpServiceProvider extends ServiceProvider
                 $registry->tool(GetQueueStatusTool::class);
                 $registry->tool(GetFailedJobsTool::class);
                 $registry->tool(GetSchedulerStatusTool::class);
+                $registry->tool(GetRecentRequestsTool::class);
+                $registry->tool(GetRequestSummaryTool::class);
             }
         });
     }

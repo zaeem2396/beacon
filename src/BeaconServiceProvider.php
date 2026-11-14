@@ -17,6 +17,9 @@ use Beacon\Console\Commands\LogsCommand;
 use Beacon\Console\Commands\MigrationRisksCommand;
 use Beacon\Console\Commands\MigrationsCommand;
 use Beacon\Console\Commands\QueuesCommand;
+use Beacon\Console\Commands\RequestsCommand;
+use Beacon\Console\Commands\RequestsPruneCommand;
+use Beacon\Console\Commands\RequestSummaryCommand;
 use Beacon\Console\Commands\RuntimeCommand;
 use Beacon\Console\Commands\SchedulerCommand;
 use Beacon\Console\Commands\SchemaCommand;
@@ -36,6 +39,7 @@ use Beacon\Health\DatabaseProbe;
 use Beacon\Health\LaravelCacheProbe;
 use Beacon\Health\LaravelDatabaseProbe;
 use Beacon\Health\SystemClock;
+use Beacon\Http\Middleware\RecordBeaconRequest;
 use Beacon\Inspectors\ApplicationInspector;
 use Beacon\Inspectors\ConfigurationInspector;
 use Beacon\Inspectors\DatabaseInspector;
@@ -49,6 +53,8 @@ use Beacon\Inspectors\LogSummaryInspector;
 use Beacon\Inspectors\MigrationInspector;
 use Beacon\Inspectors\MigrationRiskInspector;
 use Beacon\Inspectors\QueueInspector;
+use Beacon\Inspectors\RequestInspector;
+use Beacon\Inspectors\RequestSummaryInspector;
 use Beacon\Inspectors\RouteInspector;
 use Beacon\Inspectors\RuntimeInspector;
 use Beacon\Inspectors\SchedulerInspector;
@@ -64,6 +70,10 @@ use Beacon\Migrations\MigrationHistory;
 use Beacon\Migrations\MigrationScanner;
 use Beacon\Migrations\RepositoryHistory;
 use Beacon\QueueIntelligence\FailedJobReader;
+use Beacon\Requests\DatabaseRequestStore;
+use Beacon\Requests\RequestRecorder;
+use Beacon\Requests\RequestStore;
+use Beacon\Requests\RouteNormalizer;
 use Beacon\Schema\InformationSchemaReader;
 use Beacon\Schema\SchemaReader;
 use Beacon\Security\BearerTokenAuthenticator;
@@ -74,13 +84,18 @@ use Beacon\Security\KeyPatternRedactor;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Redis\Factory as RedisFactory;
+use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 
 final class BeaconServiceProvider extends ServiceProvider
 {
     public const CONFIG_TAG = 'beacon-config';
 
+    public const MIGRATIONS_TAG = 'beacon-migrations';
+
     private const CONFIG_PATH = __DIR__ . '/../config/beacon.php';
+
+    private const MIGRATIONS_PATH = __DIR__ . '/../database/migrations';
 
     public function register(): void
     {
@@ -112,6 +127,9 @@ final class BeaconServiceProvider extends ServiceProvider
         $this->app->singleton(LogReader::class);
         $this->app->singleton(ExceptionCollector::class);
         $this->app->singleton(FailedJobReader::class);
+        $this->app->singleton(RouteNormalizer::class);
+        $this->app->singleton(RequestStore::class, DatabaseRequestStore::class);
+        $this->app->singleton(RequestRecorder::class);
         $this->app->singleton(QueueInspector::class, static function (Application $app): QueueInspector {
             $config = $app->make('config');
 
@@ -142,6 +160,8 @@ final class BeaconServiceProvider extends ServiceProvider
             $inspectors->register(QueueInspector::NAME, QueueInspector::class);
             $inspectors->register(FailedJobsInspector::NAME, FailedJobsInspector::class);
             $inspectors->register(SchedulerInspector::NAME, SchedulerInspector::class);
+            $inspectors->register(RequestInspector::NAME, RequestInspector::class);
+            $inspectors->register(RequestSummaryInspector::NAME, RequestSummaryInspector::class);
         });
 
         $this->app->register(BeaconMcpServiceProvider::class);
@@ -149,10 +169,22 @@ final class BeaconServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $router = $this->app->make(Router::class);
+        $router->aliasMiddleware('beacon.requests', RecordBeaconRequest::class);
+
+        if ($this->app->make(BeaconConfig::class)->requestMiddlewareEnabled()) {
+            $router->pushMiddlewareToGroup('web', RecordBeaconRequest::class);
+            $router->pushMiddlewareToGroup('api', RecordBeaconRequest::class);
+        }
+
         if ($this->app->runningInConsole()) {
             $this->publishes([
                 self::CONFIG_PATH => $this->app->configPath('beacon.php'),
             ], [self::CONFIG_TAG, 'beacon']);
+
+            $this->publishes([
+                self::MIGRATIONS_PATH => database_path('migrations'),
+            ], self::MIGRATIONS_TAG);
 
             $this->commands([
                 BeaconCommand::class,
@@ -171,6 +203,9 @@ final class BeaconServiceProvider extends ServiceProvider
                 QueuesCommand::class,
                 FailedJobsCommand::class,
                 SchedulerCommand::class,
+                RequestsCommand::class,
+                RequestSummaryCommand::class,
+                RequestsPruneCommand::class,
                 CheckCommand::class,
                 InstallCommand::class,
             ]);
