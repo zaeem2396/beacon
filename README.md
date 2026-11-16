@@ -2,7 +2,7 @@
 
 Laravel Beacon gives AI agents safe, structured information about a Laravel application over MCP.
 
-> **Status:** Slow request detection is implemented on top of request intelligence, runtime and error intelligence, and [v0.2.0 Database Intelligence](CHANGELOG.md): opt-in HTTP request observations, slow-request classification, endpoint latency summaries, request summaries, runtime facts, recent exceptions, error aggregation, log summaries, queue status, failed jobs, and scheduler definitions. It is early development. It is not a monitoring product and it does not find root causes. AI investigation context is not implemented. See [ROADMAP.md](ROADMAP.md).
+> **Status:** AI investigation context is implemented on top of slow request detection, request intelligence, runtime and error intelligence, and [v0.2.0 Database Intelligence](CHANGELOG.md): opt-in HTTP request observations, slow-request classification, endpoint latency summaries, request summaries, runtime facts, recent exceptions, error aggregation, log summaries, queue status, failed jobs, scheduler definitions, and a normalized multi-source investigation context. It is early development. It is not a monitoring product and it does not find root causes. See [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 
@@ -250,6 +250,19 @@ php artisan beacon:slow-request-summary --json
 
 Prints the same report as [`beacon.get_slow_request_summary`](#beaconget_slow_request_summary). It requires the `slow_request_summary` capability. Allowing only `requests` or `slow_requests` does not allow this command.
 
+### `beacon:investigate`
+
+```bash
+php artisan beacon:investigate --json
+php artisan beacon:investigate --request-id=<id>
+php artisan beacon:investigate --correlation-id=<id>
+php artisan beacon:investigate --exception-id=<id>
+php artisan beacon:investigate --fingerprint=<fingerprint>
+php artisan beacon:investigate --endpoint=<route> --since=<time> --until=<time>
+```
+
+Prints the same report as [`beacon.get_investigation_context`](#beaconget_investigation_context). It requires the `investigation_context` capability. Allowing only `requests`, `exceptions`, or `slow_requests` does not allow this command.
+
 ### `beacon:requests-prune`
 
 ```bash
@@ -266,7 +279,7 @@ php artisan beacon:install
 
 - Publishes `config/beacon.php` (the `beacon-config` publish tag) if it does not exist yet.
 - **Never overwrites an existing file** and is safe to run repeatedly. To replace your configuration deliberately, run `php artisan vendor:publish --tag=beacon-config --force`.
-- Mentions the `beacon-migrations` publish tag and `BEACON_REQUESTS_COLLECTION` for opt-in request intelligence, plus the `requests`, `request_summary`, `slow_requests`, and `slow_request_summary` capabilities and related Artisan commands.
+- Mentions the `beacon-migrations` publish tag and `BEACON_REQUESTS_COLLECTION` for opt-in request intelligence, plus the `requests`, `request_summary`, `slow_requests`, `slow_request_summary`, and `investigation_context` capabilities and related Artisan commands.
 - **Does not edit `.env`, generate tokens, enable MCP or expose an HTTP endpoint.** It prints the variables you need to set yourself:
 
 ```text
@@ -558,7 +571,7 @@ What an authenticated client may do is decided separately; see [Authorization an
 - **Tokens do not expire.** They stay valid until you rotate them.
 - **No built-in rate limiting.** A 32+ character random token cannot realistically be guessed, but you can add Laravel's `throttle` middleware in front of the endpoint if you need request limits.
 - **No OAuth.** laravel/mcp's OAuth support requires Laravel Passport and user accounts, which Beacon does not assume.
-- **Twenty-three tools, no resources or prompts.** The server exposes application, environment, route, config, health, database, schema, migration, schema-comparison, runtime, exception, error-aggregation, log, queue, failed-job, scheduler, request-intelligence, and slow-request tools. AI investigation context follows the [roadmap](ROADMAP.md).
+- **Twenty-four tools, no resources or prompts.** The server exposes application, environment, route, config, health, database, schema, migration, schema-comparison, runtime, exception, error-aggregation, log, queue, failed-job, scheduler, request-intelligence, slow-request, and investigation-context tools.
 
 ## Authorization and the read-only model
 
@@ -592,9 +605,10 @@ Every operation that exposes application information requires exactly one capabi
 | `request_summary` | Request summary metrics for the inspected storage window |
 | `slow_requests` | Recorded HTTP requests that exceeded configured duration thresholds |
 | `slow_request_summary` | Endpoint latency summaries for the inspected request window |
+| `investigation_context` | Normalized multi-source investigation context |
 | `health`      | Application and infrastructure health results                 |
 
-`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. `schema` is used by [`beacon.get_database_schema`](#beaconget_database_schema). Allowing `database` does not allow schema inspection. `migrations` is used by [`beacon.get_migrations`](#beaconget_migrations). Allowing `database` or `schema` does not allow migration inspection. `migration_risk` is used by [`beacon.analyze_migration_risks`](#beaconanalyze_migration_risks). Allowing `migrations`, `database`, or `schema` does not allow risk analysis. When `schema` is also allowed, risk analysis may use schema metadata to refine findings. `schema_snapshot` is used by [`beacon.create_schema_snapshot`](#beaconcreate_schema_snapshot) and also requires `schema`. `schema_compare` is used by [`beacon.compare_schema_snapshots`](#beaconcompare_schema_snapshots). A live side of a comparison also requires `schema`. Allowing `schema` alone does not grant either tool. `runtime`, `exceptions`, `error_aggregate`, `error_summary`, `logs`, `queue`, `failed_jobs`, `scheduler`, `requests`, `request_summary`, `slow_requests`, and `slow_request_summary` are separate default-deny capabilities.
+`application` is used by [`beacon.get_application_info`](#beaconget_application_info). `environment` is used by [`beacon.get_environment`](#beaconget_environment). `routes` is used by [`beacon.get_routes`](#beaconget_routes). `config` is used by [`beacon.get_config`](#beaconget_config). `health` is used by [`beacon.get_health`](#beaconget_health). `database` is used by [`beacon.get_database_status`](#beaconget_database_status) for connection status. `schema` is used by [`beacon.get_database_schema`](#beaconget_database_schema). Allowing `database` does not allow schema inspection. `migrations` is used by [`beacon.get_migrations`](#beaconget_migrations). Allowing `database` or `schema` does not allow migration inspection. `migration_risk` is used by [`beacon.analyze_migration_risks`](#beaconanalyze_migration_risks). Allowing `migrations`, `database`, or `schema` does not allow risk analysis. When `schema` is also allowed, risk analysis may use schema metadata to refine findings. `schema_snapshot` is used by [`beacon.create_schema_snapshot`](#beaconcreate_schema_snapshot) and also requires `schema`. `schema_compare` is used by [`beacon.compare_schema_snapshots`](#beaconcompare_schema_snapshots). A live side of a comparison also requires `schema`. Allowing `schema` alone does not grant either tool. `runtime`, `exceptions`, `error_aggregate`, `error_summary`, `logs`, `queue`, `failed_jobs`, `scheduler`, `requests`, `request_summary`, `slow_requests`, `slow_request_summary`, and `investigation_context` are separate default-deny capabilities.
 
 ### Default deny
 
@@ -712,6 +726,7 @@ Every Beacon tool is read-only, requires exactly one capability, and runs only f
 | `beacon.get_request_summary` | `request_summary` | Request summary metrics for the inspected storage window |
 | `beacon.get_slow_requests` | `slow_requests` | Recorded HTTP requests that exceeded configured duration thresholds |
 | `beacon.get_slow_request_summary` | `slow_request_summary` | Endpoint latency summaries for the inspected request window |
+| `beacon.get_investigation_context` | `investigation_context` | Normalized investigation context from existing Beacon evidence |
 
 ### `beacon.get_application_info`
 
@@ -1841,13 +1856,17 @@ Recorded HTTP requests that exceeded configured duration thresholds. Requires `s
 
 Endpoint latency summaries for the inspected request window. Requires `slow_request_summary`. p95 needs at least 5 samples. p99 needs at least 20 samples. Allowing only `requests` or `slow_requests` does not grant this tool. Counts cover only the inspected records.
 
+### `beacon.get_investigation_context`
+
+Normalized investigation context from existing Beacon evidence. Requires `investigation_context`. Schema version 1. Entry points: `request_id`, `correlation_id`, `exception_id`, `fingerprint`, `endpoint`, `since`, `until`, `severity`, `window_minutes`, `max_results`. Multiple identifiers combine with AND. Primary subject priority is request_id, then correlation_id, then exception_id, then fingerprint, then endpoint, then the bounded time window. Distinguishes direct, inferred, and uncorrelated evidence. Includes timeline, deterministic leads, source status, and missing-evidence notes. Does not claim a root cause. Does not invent deployment or configuration-change history. Bodies, cookies, Authorization headers, query strings, and failed-job payloads are never returned. Allowing only `requests`, `exceptions`, or `slow_requests` does not grant this tool.
+
 #### Request intelligence
 
 Request collection uses the `beacon.requests` middleware alias. When `beacon.requests.middleware` is true (default), Beacon appends the collector to the `web` and `api` groups. Registration alone does not collect. Writes happen only when collection is enabled and the `beacon_requests` table exists. Configure slow thresholds under `beacon.requests.slow`. Prune with `php artisan beacon:requests-prune`.
 
 #### Runtime and error limitations
 
-- AI investigation context is not implemented.
+- Deployment history and configuration-change history are reported as unavailable until Beacon has a real source. Investigation context does not invent them.
 - Aggregation does not add persistent telemetry storage beyond opt-in request observations.
 - Database queue backlog counting and Horizon worker inspection are not complete in this release.
 

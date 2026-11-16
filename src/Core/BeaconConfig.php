@@ -367,6 +367,29 @@ final class BeaconConfig
         return $max < 1 || $max > 100 ? 25 : $max;
     }
 
+    /**
+     * Bounded limits for AI investigation context output.
+     */
+    public function investigationLimits(): \Beacon\Investigation\InvestigationLimits
+    {
+        $defaults = \Beacon\Investigation\InvestigationLimits::defaults();
+
+        return new \Beacon\Investigation\InvestigationLimits(
+            windowMinutes: $this->boundedInt('beacon.investigation.window_minutes', $defaults->windowMinutes, 1, \Beacon\Investigation\InvestigationLimits::MAX_WINDOW_MINUTES),
+            maxExceptions: $this->boundedInt('beacon.investigation.max_exceptions', $defaults->maxExceptions, 1, 100),
+            maxExceptionSamples: $this->boundedInt('beacon.investigation.max_exception_samples', $defaults->maxExceptionSamples, 1, 25),
+            maxRequests: $this->boundedInt('beacon.investigation.max_requests', $defaults->maxRequests, 1, 100),
+            maxSlowRequests: $this->boundedInt('beacon.investigation.max_slow_requests', $defaults->maxSlowRequests, 1, 100),
+            maxLogs: $this->boundedInt('beacon.investigation.max_logs', $defaults->maxLogs, 1, 100),
+            maxFailedJobs: $this->boundedInt('beacon.investigation.max_failed_jobs', $defaults->maxFailedJobs, 1, 100),
+            maxTimelineEvents: $this->boundedInt('beacon.investigation.max_timeline_events', $defaults->maxTimelineEvents, 1, 200),
+            maxLeads: $this->boundedInt('beacon.investigation.max_leads', $defaults->maxLeads, 1, 25),
+            maxMessageLength: $this->boundedInt('beacon.investigation.max_message_length', $defaults->maxMessageLength, 40, 240),
+            maxStackFrames: $this->boundedInt('beacon.investigation.max_stack_frames', $defaults->maxStackFrames, 0, 20),
+            maxTotalEvidence: $this->boundedInt('beacon.investigation.max_total_evidence', $defaults->maxTotalEvidence, 1, 500),
+        );
+    }
+
     public function healthCacheEnabled(): bool
     {
         return $this->bool('beacon.health.cache.enabled', false);
@@ -402,6 +425,19 @@ final class BeaconConfig
         }
 
         return $result;
+    }
+
+    private function boundedInt(string $key, int $default, int $min, int $max): int
+    {
+        $value = $this->config->get($key, $default);
+
+        if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+            return $default;
+        }
+
+        $int = (int) $value;
+
+        return $int < $min || $int > $max ? $default : $int;
     }
 
     private function boundedTimeout(string $key): ?int

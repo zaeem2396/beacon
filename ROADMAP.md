@@ -41,7 +41,7 @@ Beacon Cloud
 * 🟡 **In Progress**
 * 🔴 **Pending**
 
-At project kickoff, implementation modules are intentionally marked 🔴.
+Statuses use the legend above. Mark a module Done only when it ships through MCP and the CLI with tests and docs.
 
 ---
 
@@ -51,11 +51,11 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 
 | Module                   | Prompt                                                                                                                                                                                                                            | Status |
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Package foundation       | Create the Laravel package structure, configuration, service provider, console commands, contracts and testing foundation. The package must be installable independently and must not depend on any of Zaeem's existing packages. | 🟢     |
-| MCP server               | Implement a Laravel-native MCP server exposing Beacon functionality to external AI clients. MCP must be treated as a core product interface rather than a secondary integration.                                                | 🟢     |
-| MCP authentication       | Implement secure authentication for MCP connections with configurable tokens/credentials and environment-aware restrictions. Production access must be explicitly enabled and never accidentally exposed by default.              | 🟢     |
-| Read-only security model | Establish read-only as the default capability model. No destructive or mutating operation should be possible in v0.1.                                                                                                             | 🟢     |
-| CLI foundation           | Add the Beacon Artisan command structure, including a root `Beacon` command and commands for diagnostics and MCP management.                                                                                                  | 🟢     |
+| Package foundation       | Create the Laravel package structure, configuration, service provider, console commands, contracts and testing foundation. The package must be installable independently and must not depend on any of Zaeem's existing packages. | 🟢 Done |
+| MCP server               | Implement a Laravel-native MCP server exposing Beacon functionality to external AI clients. MCP must be treated as a core product interface rather than a secondary integration.                                                | 🟢 Done |
+| MCP authentication       | Implement secure authentication for MCP connections with configurable tokens/credentials and environment-aware restrictions. Production access must be explicitly enabled and never accidentally exposed by default.              | 🟢 Done |
+| Read-only security model | Establish read-only as the default capability model. No destructive or mutating operation should be possible in v0.1.                                                                                                             | 🟢 Done |
+| CLI foundation           | Add the Beacon Artisan command structure, including a root `Beacon` command and commands for diagnostics and MCP management.                                                                                                  | 🟢 Done |
 
 ---
 
@@ -94,9 +94,9 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 | Queue status             | Inspect queue configuration and safely observable backend state without treating configuration as proof that workers are running.                                                      | 🟢 Done |
 | Failed jobs              | Expose failed job metadata without payloads, deserialization, or retries.                                                                                                              | 🟢 Done |
 | Scheduler inspection     | List registered scheduled task definitions without executing tasks.                                                                                                                    | 🟢 Done |
-| Request intelligence     | Provide recent request information including endpoint, status, latency and relevant performance indicators where available.                                                            | 🟢 Done |
-| Slow request detection   | Identify unusually slow requests and provide enough context for AI investigation.                                                                                                      | 🟢 Done |
-| AI investigation context | Build a normalized investigation context that combines errors, requests, deployments, database activity and configuration changes.                                                     | 🔴     |
+| Request intelligence     | Opt-in recent HTTP request observations with endpoint, status, latency, and request summaries. Bodies, cookies, and credentials are never stored.                                      | 🟢 Done |
+| Slow request detection   | Classify recorded requests that exceed configured duration thresholds, with ranks and endpoint latency summaries. Requires opt-in request collection. Does not invent causes.          | 🟢 Done |
+| AI investigation context | Build a normalized investigation context that combines errors, requests, deployments, database activity and configuration changes. Slow request tools alone do not satisfy this module. | 🟢 Done |
 
 ---
 
@@ -104,11 +104,11 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 
 | Module                    | Prompt                                                                                                                  | Status |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------ |
-| Queue health              | Inspect configured queue connections and determine whether queues appear healthy.                                       | 🟢 Done |
-| Failed jobs               | Expose failed job counts, recent failures, queue names and safe job metadata. Sensitive payload data must be sanitized. | 🟢 Done |
-| Queue latency             | Detect queue backlog and latency where the underlying queue driver provides enough information.                         | 🟡     |
-| Worker inspection         | Expose worker/Horizon status where available without requiring Horizon as a dependency.                                 | 🔴     |
-| Job failure investigation | Allow AI to correlate failed jobs with application exceptions, deployments and configuration changes.                   | 🔴     |
+| Queue health              | Inspect configured queue connections and safely observable backend state. Core coverage shipped with v0.3 queue status.  | 🟢 Done |
+| Failed jobs               | Expose failed job counts, recent failures, queue names, and safe metadata without payloads. Shipped with v0.3.          | 🟢 Done |
+| Queue latency             | Detect queue backlog and latency where the underlying queue driver provides enough information.                         | 🟡 In Progress |
+| Worker inspection         | Expose worker/Horizon status where available without requiring Horizon as a dependency.                                 | 🔴 Pending |
+| Job failure investigation | Allow AI to correlate failed jobs with application exceptions, deployments and configuration changes.                   | 🔴 Pending |
 
 ---
 
@@ -116,11 +116,11 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 
 | Module                       | Prompt                                                                                                                                                           | Status |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Deployment model             | Introduce a deployment abstraction capable of representing deployment ID, commit, timestamp, environment and application version.                                | 🔴     |
-| Deployment tracking          | Allow deployments to be recorded through CLI/API/GitHub Actions integration.                                                                                     | 🔴     |
-| Deployment comparison        | Compare two deployments and identify relevant changes to migrations, routes, configuration, dependencies and application metadata.                               | 🔴     |
-| Post-deployment verification | Provide a command that verifies application health after deployment and returns a machine-readable result.                                                       | 🔴     |
-| Deployment risk score        | Calculate a deterministic deployment risk score based on configured checks. AI may explain the score but must not be responsible for the underlying calculation. | 🔴     |
+| Deployment model             | Introduce a deployment abstraction capable of representing deployment ID, commit, timestamp, environment and application version.                                | 🔴 Pending |
+| Deployment tracking          | Allow deployments to be recorded through CLI/API/GitHub Actions integration.                                                                                     | 🔴 Pending |
+| Deployment comparison        | Compare two deployments and identify relevant changes to migrations, routes, configuration, dependencies and application metadata.                               | 🔴 Pending |
+| Post-deployment verification | Provide a command that verifies application health after deployment and returns a machine-readable result.                                                       | 🔴 Pending |
+| Deployment risk score        | Calculate a deterministic deployment risk score based on configured checks. AI may explain the score but must not be responsible for the underlying calculation. | 🔴 Pending |
 
 ---
 
@@ -128,11 +128,11 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 
 | Module                   | Prompt                                                                                                                                                         | Status |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Investigation model      | Create a structured investigation model representing a production problem, evidence collected, hypotheses, confidence and recommended actions.                 | 🔴     |
-| Cross-signal correlation | Allow the AI to correlate errors, requests, queues, database state, migrations, deployments and configuration rather than analyzing each signal independently. | 🔴     |
-| Root-cause workflow      | Provide an investigation workflow that progressively gathers evidence before producing a diagnosis. The AI must distinguish evidence from assumptions.         | 🔴     |
-| Confidence               | Require AI-generated conclusions to include confidence and supporting evidence. Never present speculative conclusions as facts.                                | 🔴     |
-| Investigation reports    | Produce machine-readable and human-readable investigation reports suitable for developers, engineering managers and incident records.                          | 🔴     |
+| Investigation model      | Create a structured investigation model representing a production problem, evidence collected, hypotheses, confidence and recommended actions.                 | 🔴 Pending |
+| Cross-signal correlation | Allow the AI to correlate errors, requests, queues, database state, migrations, deployments and configuration rather than analyzing each signal independently. | 🔴 Pending |
+| Root-cause workflow      | Provide an investigation workflow that progressively gathers evidence before producing a diagnosis. The AI must distinguish evidence from assumptions.         | 🔴 Pending |
+| Confidence               | Require AI-generated conclusions to include confidence and supporting evidence. Never present speculative conclusions as facts.                                | 🔴 Pending |
+| Investigation reports    | Produce machine-readable and human-readable investigation reports suitable for developers, engineering managers and incident records.                          | 🔴 Pending |
 
 ---
 
@@ -140,11 +140,11 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 
 | Module           | Prompt                                                                                                                                           | Status |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
-| MCP resources    | Expose useful Laravel production context as MCP resources where appropriate instead of forcing everything through tools.                         | 🔴     |
-| MCP prompts      | Add reusable investigation prompts such as deployment investigation, queue investigation, migration safety review and application health review. | 🔴     |
-| Tool discovery   | Improve MCP tool descriptions and schemas so AI agents understand when and how each Beacon capability should be used.                          | 🔴     |
-| Tool permissions | Introduce granular capability permissions so organizations can control which tools an AI client can access.                                      | 🔴     |
-| Audit trail      | Record MCP tool usage including client, user, tool, timestamp and result metadata while avoiding sensitive data storage.                         | 🔴     |
+| MCP resources    | Expose useful Laravel production context as MCP resources where appropriate instead of forcing everything through tools.                         | 🔴 Pending |
+| MCP prompts      | Add reusable investigation prompts such as deployment investigation, queue investigation, migration safety review and application health review. | 🔴 Pending |
+| Tool discovery   | Improve MCP tool descriptions and schemas so AI agents understand when and how each Beacon capability should be used.                          | 🔴 Pending |
+| Tool permissions | Introduce granular capability permissions so organizations can control which tools an AI client can access.                                      | 🔴 Pending |
+| Audit trail      | Record MCP tool usage including client, user, tool, timestamp and result metadata while avoiding sensitive data storage.                         | 🔴 Pending |
 
 ---
 
@@ -152,11 +152,11 @@ At project kickoff, implementation modules are intentionally marked 🔴.
 
 | Module                           | Prompt                                                                                                   | Status |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
-| GitHub Actions                   | Provide an official GitHub Action for Beacon checks.                                                   | 🔴     |
-| CI deployment gate               | Allow deterministic production checks to fail a deployment when configured risk thresholds are exceeded. | 🔴     |
-| PR analysis                      | Provide optional migration/configuration/deployment risk analysis during pull requests.                  | 🔴     |
-| Deployment verification workflow | Provide a standard workflow for deploy → verify → report.                                                | 🔴     |
-| Machine-readable output          | Add JSON and other structured outputs for CI/CD systems.                                                 | 🔴     |
+| GitHub Actions                   | Provide an official GitHub Action for Beacon checks.                                                   | 🔴 Pending |
+| CI deployment gate               | Allow deterministic production checks to fail a deployment when configured risk thresholds are exceeded. | 🔴 Pending |
+| PR analysis                      | Provide optional migration/configuration/deployment risk analysis during pull requests.                  | 🔴 Pending |
+| Deployment verification workflow | Provide a standard workflow for deploy → verify → report.                                                | 🔴 Pending |
+| Machine-readable output          | Add JSON and other structured outputs for CI/CD systems.                                                 | 🔴 Pending |
 
 ---
 
@@ -166,11 +166,11 @@ This is the first version where Beacon can potentially move beyond observation.
 
 | Module            | Prompt                                                                                                  | Status |
 | ----------------- | ------------------------------------------------------------------------------------------------------- | ------ |
-| Action framework  | Create a permissioned action framework that separates read-only investigation from mutating operations. | 🔴     |
-| Retry failed job  | Allow an authorized user/agent to request retrying selected failed jobs after explicit approval.        | 🔴     |
-| Cache operations  | Support controlled cache operations with explicit permission and audit logging.                         | 🔴     |
-| Worker operations | Support controlled worker restart operations where the deployment environment supports it.              | 🔴     |
-| Human approval    | Every destructive or operational action must support explicit human approval before execution.          | 🔴     |
+| Action framework  | Create a permissioned action framework that separates read-only investigation from mutating operations. | 🔴 Pending |
+| Retry failed job  | Allow an authorized user/agent to request retrying selected failed jobs after explicit approval.        | 🔴 Pending |
+| Cache operations  | Support controlled cache operations with explicit permission and audit logging.                         | 🔴 Pending |
+| Worker operations | Support controlled worker restart operations where the deployment environment supports it.              | 🔴 Pending |
+| Human approval    | Every destructive or operational action must support explicit human approval before execution.          | 🔴 Pending |
 
 ---
 
@@ -178,12 +178,12 @@ This is the first version where Beacon can potentially move beyond observation.
 
 | Module         | Prompt                                                                                            | Status |
 | -------------- | ------------------------------------------------------------------------------------------------- | ------ |
-| Stable API     | Stabilize public contracts, configuration and MCP interfaces.                                     | 🔴     |
-| Security audit | Review authentication, authorization, secret handling, data exposure and MCP attack surfaces.     | 🔴     |
-| Documentation  | Create installation, configuration, MCP client, production deployment and security documentation. | 🔴     |
-| Compatibility  | Define and test supported Laravel/PHP versions.                                                   | 🔴     |
-| Performance    | Ensure Beacon has minimal impact when installed in production applications.                     | 🔴     |
-| Release        | Release stable v1.0 with semantic versioning and upgrade documentation.                           | 🔴     |
+| Stable API     | Stabilize public contracts, configuration and MCP interfaces.                                     | 🔴 Pending |
+| Security audit | Review authentication, authorization, secret handling, data exposure and MCP attack surfaces.     | 🔴 Pending |
+| Documentation  | Create installation, configuration, MCP client, production deployment and security documentation. | 🔴 Pending |
+| Compatibility  | Define and test supported Laravel/PHP versions.                                                   | 🔴 Pending |
+| Performance    | Ensure Beacon has minimal impact when installed in production applications.                     | 🔴 Pending |
+| Release        | Release stable v1.0 with semantic versioning and upgrade documentation.                           | 🔴 Pending |
 
 ---
 
@@ -195,11 +195,11 @@ The OSS package remains the runtime intelligence layer. Cloud becomes the centra
 
 | Module                   | Prompt                                                                                               | Status |
 | ------------------------ | ---------------------------------------------------------------------------------------------------- | ------ |
-| Application registration | Allow organizations to register Laravel applications and associate Beacon installations with them. | 🔴     |
-| Deployment history       | Store deployments and deployment health results centrally.                                           | 🔴     |
-| Application inventory    | Provide an organization-level inventory of Laravel applications and environments.                    | 🔴     |
-| Historical health        | Store health and risk history so teams can identify trends.                                          | 🔴     |
-| AI investigations        | Allow investigations to be persisted and shared across teams.                                        | 🔴     |
+| Application registration | Allow organizations to register Laravel applications and associate Beacon installations with them. | 🔴 Pending |
+| Deployment history       | Store deployments and deployment health results centrally.                                           | 🔴 Pending |
+| Application inventory    | Provide an organization-level inventory of Laravel applications and environments.                    | 🔴 Pending |
+| Historical health        | Store health and risk history so teams can identify trends.                                          | 🔴 Pending |
+| AI investigations        | Allow investigations to be persisted and shared across teams.                                        | 🔴 Pending |
 
 ---
 
@@ -207,11 +207,11 @@ The OSS package remains the runtime intelligence layer. Cloud becomes the centra
 
 | Module              | Prompt                                                                                        | Status |
 | ------------------- | --------------------------------------------------------------------------------------------- | ------ |
-| Organizations       | Support organizations and teams.                                                              | 🔴     |
-| RBAC                | Introduce organization, admin, developer and read-only roles.                                 | 🔴     |
-| Alerts              | Add email, Slack and webhook notifications for important production events.                   | 🔴     |
-| Incident management | Turn Beacon investigations into incidents with status, timeline and resolution information. | 🔴     |
-| Audit logs          | Provide organization-level audit logs.                                                        | 🔴     |
+| Organizations       | Support organizations and teams.                                                              | 🔴 Pending |
+| RBAC                | Introduce organization, admin, developer and read-only roles.                                 | 🔴 Pending |
+| Alerts              | Add email, Slack and webhook notifications for important production events.                   | 🔴 Pending |
+| Incident management | Turn Beacon investigations into incidents with status, timeline and resolution information. | 🔴 Pending |
+| Audit logs          | Provide organization-level audit logs.                                                        | 🔴 Pending |
 
 ---
 
@@ -219,11 +219,11 @@ The OSS package remains the runtime intelligence layer. Cloud becomes the centra
 
 | Module             | Prompt                                                                 | Status |
 | ------------------ | ---------------------------------------------------------------------- | ------ |
-| SSO                | Add enterprise authentication integrations.                            | 🔴     |
-| Advanced policies  | Allow organizations to define production safety policies.              | 🔴     |
-| Custom checks      | Allow organizations to create organization-specific production checks. | 🔴     |
-| Extended retention | Offer configurable long-term historical data retention.                | 🔴     |
-| Enterprise support | Establish paid support and implementation packages.                    | 🔴     |
+| SSO                | Add enterprise authentication integrations.                            | 🔴 Pending |
+| Advanced policies  | Allow organizations to define production safety policies.              | 🔴 Pending |
+| Custom checks      | Allow organizations to create organization-specific production checks. | 🔴 Pending |
+| Extended retention | Offer configurable long-term historical data retention.                | 🔴 Pending |
+| Enterprise support | Establish paid support and implementation packages.                    | 🔴 Pending |
 
 ---
 

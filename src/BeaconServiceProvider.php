@@ -13,6 +13,7 @@ use Beacon\Console\Commands\ExceptionsCommand;
 use Beacon\Console\Commands\FailedJobsCommand;
 use Beacon\Console\Commands\HealthCommand;
 use Beacon\Console\Commands\InstallCommand;
+use Beacon\Console\Commands\InvestigateCommand;
 use Beacon\Console\Commands\LogsCommand;
 use Beacon\Console\Commands\MigrationRisksCommand;
 use Beacon\Console\Commands\MigrationsCommand;
@@ -51,6 +52,7 @@ use Beacon\Inspectors\ErrorSummaryInspector;
 use Beacon\Inspectors\ExceptionInspector;
 use Beacon\Inspectors\FailedJobsInspector;
 use Beacon\Inspectors\HealthInspector;
+use Beacon\Inspectors\InvestigationContextInspector;
 use Beacon\Inspectors\LogSummaryInspector;
 use Beacon\Inspectors\MigrationInspector;
 use Beacon\Inspectors\MigrationRiskInspector;
@@ -65,6 +67,8 @@ use Beacon\Inspectors\SchemaInspector;
 use Beacon\Inspectors\SchemaSnapshotInspector;
 use Beacon\Inspectors\SlowRequestInspector;
 use Beacon\Inspectors\SlowRequestSummaryInspector;
+use Beacon\Investigation\ContextBuilder;
+use Beacon\Investigation\EvidenceCollector;
 use Beacon\Logs\ExceptionCollector;
 use Beacon\Logs\LogFiles;
 use Beacon\Logs\LogReader;
@@ -134,6 +138,8 @@ final class BeaconServiceProvider extends ServiceProvider
         $this->app->singleton(RouteNormalizer::class);
         $this->app->singleton(RequestStore::class, DatabaseRequestStore::class);
         $this->app->singleton(RequestRecorder::class);
+        $this->app->singleton(EvidenceCollector::class);
+        $this->app->singleton(ContextBuilder::class);
         $this->app->singleton(QueueInspector::class, static function (Application $app): QueueInspector {
             $config = $app->make('config');
 
@@ -168,6 +174,7 @@ final class BeaconServiceProvider extends ServiceProvider
             $inspectors->register(RequestSummaryInspector::NAME, RequestSummaryInspector::class);
             $inspectors->register(SlowRequestInspector::NAME, SlowRequestInspector::class);
             $inspectors->register(SlowRequestSummaryInspector::NAME, SlowRequestSummaryInspector::class);
+            $inspectors->register(InvestigationContextInspector::NAME, InvestigationContextInspector::class);
         });
 
         $this->app->register(BeaconMcpServiceProvider::class);
@@ -213,6 +220,7 @@ final class BeaconServiceProvider extends ServiceProvider
                 RequestSummaryCommand::class,
                 SlowRequestsCommand::class,
                 SlowRequestSummaryCommand::class,
+                InvestigateCommand::class,
                 RequestsPruneCommand::class,
                 CheckCommand::class,
                 InstallCommand::class,

@@ -34,6 +34,7 @@ enum InspectionCapability: string
     case RequestSummary = 'request_summary';
     case SlowRequests = 'slow_requests';
     case SlowRequestSummary = 'slow_request_summary';
+    case InvestigationContext = 'investigation_context';
     case Health = 'health';
 
     public function capability(): Capability
@@ -66,6 +67,7 @@ enum InspectionCapability: string
             self::RequestSummary => 'Request summary metrics for the inspected storage window.',
             self::SlowRequests => 'Recorded HTTP requests that exceeded configured duration thresholds.',
             self::SlowRequestSummary => 'Endpoint latency summaries for the inspected request window.',
+            self::InvestigationContext => 'Normalized investigation context combining related Beacon evidence.',
             self::Health => 'Normalized application and infrastructure health results.',
         };
     }

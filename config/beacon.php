@@ -85,7 +85,8 @@ return [
     | Available: application, environment, routes, config, database, schema,
     | migrations, migration_risk, schema_snapshot, schema_compare, runtime,
     | exceptions, error_aggregate, error_summary, logs, queue, failed_jobs,
-    | scheduler, requests, request_summary, slow_requests, slow_request_summary, health.
+    | scheduler, requests, request_summary, slow_requests, slow_request_summary,
+    | investigation_context, health.
     | Unregistered names are ignored.
     | Beacon v0.x is read-only: mutating capabilities are always denied and
     | cannot be enabled here.
@@ -255,6 +256,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | AI investigation context
+    |--------------------------------------------------------------------------
+    |
+    | Combines existing Beacon evidence for a bounded investigation. Defaults
+    | keep output small. Callers cannot raise limits above these ceilings.
+    | Deployment and configuration-change history are not fabricated when
+    | unavailable.
+    |
+    */
+
+    'investigation' => [
+        'window_minutes' => env('BEACON_INVESTIGATION_WINDOW_MINUTES', 60),
+        'max_exceptions' => env('BEACON_INVESTIGATION_MAX_EXCEPTIONS', 25),
+        'max_exception_samples' => env('BEACON_INVESTIGATION_MAX_EXCEPTION_SAMPLES', 5),
+        'max_requests' => env('BEACON_INVESTIGATION_MAX_REQUESTS', 25),
+        'max_slow_requests' => env('BEACON_INVESTIGATION_MAX_SLOW_REQUESTS', 25),
+        'max_logs' => env('BEACON_INVESTIGATION_MAX_LOGS', 25),
+        'max_failed_jobs' => env('BEACON_INVESTIGATION_MAX_FAILED_JOBS', 25),
+        'max_timeline_events' => env('BEACON_INVESTIGATION_MAX_TIMELINE', 50),
+        'max_leads' => env('BEACON_INVESTIGATION_MAX_LEADS', 10),
+        'max_message_length' => env('BEACON_INVESTIGATION_MAX_MESSAGE_LENGTH', 240),
+        'max_stack_frames' => env('BEACON_INVESTIGATION_MAX_STACK_FRAMES', 5),
+        'max_total_evidence' => env('BEACON_INVESTIGATION_MAX_TOTAL', 150),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Inspectors
     |--------------------------------------------------------------------------
     |
@@ -300,6 +328,7 @@ return [
         'request_summary' => ['enabled' => true],
         'slow_requests' => ['enabled' => true],
         'slow_request_summary' => ['enabled' => true],
+        'investigation_context' => ['enabled' => true],
         'health' => ['enabled' => true],
     ],
 
