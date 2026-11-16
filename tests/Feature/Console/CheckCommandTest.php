@@ -61,7 +61,7 @@ final class CheckCommandTest extends TestCase
         [, $report] = $this->check();
 
         $this->assertSame('pass', $this->statusOf($report, 'inspectors'));
-        $this->assertSame('Enabled: application, environment, routes, config, health, database, schema, migrations, migration_risk, schema_snapshot, schema_compare, runtime, exceptions, error_aggregate, error_summary, logs, queue, failed_jobs, scheduler, requests, request_summary.', $this->messageOf($report, 'inspectors'));
+        $this->assertSame('Enabled: application, environment, routes, config, health, database, schema, migrations, migration_risk, schema_snapshot, schema_compare, runtime, exceptions, error_aggregate, error_summary, logs, queue, failed_jobs, scheduler, requests, request_summary, slow_requests, slow_request_summary.', $this->messageOf($report, 'inspectors'));
     }
 
     #[Test]
@@ -88,6 +88,8 @@ final class CheckCommandTest extends TestCase
         config()->set('beacon.inspectors.scheduler.enabled', false);
         config()->set('beacon.inspectors.requests.enabled', false);
         config()->set('beacon.inspectors.request_summary.enabled', false);
+        config()->set('beacon.inspectors.slow_requests.enabled', false);
+        config()->set('beacon.inspectors.slow_request_summary.enabled', false);
 
         [$exitCode, $report] = $this->check();
 

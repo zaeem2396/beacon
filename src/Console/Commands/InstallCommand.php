@@ -49,7 +49,7 @@ final class InstallCommand extends Command
         $this->line('    BEACON_MCP_ENABLED=true');
         $this->line('    BEACON_MCP_TOKEN=' . OutputFormatter::escape('<random token of at least 32 characters>'));
         $this->line('    BEACON_MCP_ENVIRONMENTS=local');
-        $this->line('    BEACON_ALLOWED_CAPABILITIES=' . OutputFormatter::escape('<capabilities to allow, e.g. application,routes,health,database,schema,migrations,migration_risk,schema_snapshot,schema_compare,runtime,exceptions,error_aggregate,error_summary,logs,queue,failed_jobs,scheduler,requests,request_summary>'));
+        $this->line('    BEACON_ALLOWED_CAPABILITIES=' . OutputFormatter::escape('<capabilities to allow, e.g. application,routes,health,database,schema,migrations,migration_risk,schema_snapshot,schema_compare,runtime,exceptions,error_aggregate,error_summary,logs,queue,failed_jobs,scheduler,requests,request_summary,slow_requests,slow_request_summary>'));
         $this->newLine();
         $this->line('  Generate a token (keep it out of version control):');
         $this->newLine();
@@ -63,7 +63,7 @@ final class InstallCommand extends Command
 
         $this->line('  Remote (HTTP) access is a separate opt-in; see the README before enabling it.');
         $this->line('  For request intelligence, publish migrations with <fg=green>php artisan vendor:publish --tag=beacon-migrations</>, run them, then set <fg=yellow>BEACON_REQUESTS_COLLECTION=true</>. Collection stays off until you opt in.');
-        $this->line('  Inspect this application with <fg=green>php artisan beacon:application</>, <fg=green>php artisan beacon:health</>, <fg=green>php artisan beacon:database</>, <fg=green>php artisan beacon:schema</>, <fg=green>php artisan beacon:migrations</>, <fg=green>php artisan beacon:migration-risks</>, <fg=green>php artisan beacon:schema-snapshot</>, <fg=green>php artisan beacon:schema-compare</>, <fg=green>php artisan beacon:runtime</>, <fg=green>php artisan beacon:exceptions</>, <fg=green>php artisan beacon:errors</>, <fg=green>php artisan beacon:logs</>, <fg=green>php artisan beacon:queues</>, <fg=green>php artisan beacon:failed-jobs</>, <fg=green>php artisan beacon:scheduler</>, <fg=green>php artisan beacon:requests</>, or <fg=green>php artisan beacon:request-summary</> after allowing those capabilities.');
+        $this->line('  Inspect this application with <fg=green>php artisan beacon:application</>, <fg=green>php artisan beacon:health</>, <fg=green>php artisan beacon:database</>, <fg=green>php artisan beacon:schema</>, <fg=green>php artisan beacon:migrations</>, <fg=green>php artisan beacon:migration-risks</>, <fg=green>php artisan beacon:schema-snapshot</>, <fg=green>php artisan beacon:schema-compare</>, <fg=green>php artisan beacon:runtime</>, <fg=green>php artisan beacon:exceptions</>, <fg=green>php artisan beacon:errors</>, <fg=green>php artisan beacon:logs</>, <fg=green>php artisan beacon:queues</>, <fg=green>php artisan beacon:failed-jobs</>, <fg=green>php artisan beacon:scheduler</>, <fg=green>php artisan beacon:requests</>, <fg=green>php artisan beacon:request-summary</>, <fg=green>php artisan beacon:slow-requests</>, or <fg=green>php artisan beacon:slow-request-summary</> after allowing those capabilities.');
         $this->line('  Prune old Beacon request rows with <fg=green>php artisan beacon:requests-prune</> (maintenance; does not require the requests capability).');
         $this->line('  Then run <fg=green>php artisan beacon:check</> to verify your setup.');
         $this->newLine();
