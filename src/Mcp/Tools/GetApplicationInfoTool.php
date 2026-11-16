@@ -68,8 +68,10 @@ final class GetApplicationInfoTool extends Tool implements RequiresCapability
         error metrics, beacon.get_log_summary for file log counts,
         beacon.get_queue_status and beacon.get_failed_jobs for queue state,
         beacon.get_scheduler_status for scheduled task definitions,
-        beacon.get_recent_requests for recent HTTP request observations, and
-        beacon.get_request_summary for request metrics.
+        beacon.get_recent_requests for recent HTTP request observations,
+        beacon.get_request_summary for request metrics,
+        beacon.get_slow_requests for requests over duration thresholds, and
+        beacon.get_slow_request_summary for endpoint latency summaries.
 
         php_version describes the process serving this MCP connection. Over stdio that is the
         PHP CLI, whose version and settings can differ from PHP-FPM serving web traffic.

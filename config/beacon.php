@@ -85,7 +85,8 @@ return [
     | Available: application, environment, routes, config, database, schema,
     | migrations, migration_risk, schema_snapshot, schema_compare, runtime,
     | exceptions, error_aggregate, error_summary, logs, queue, failed_jobs,
-    | scheduler, requests, request_summary, health. Unregistered names are ignored.
+    | scheduler, requests, request_summary, slow_requests, slow_request_summary, health.
+    | Unregistered names are ignored.
     | Beacon v0.x is read-only: mutating capabilities are always denied and
     | cannot be enabled here.
     |
@@ -241,6 +242,15 @@ return [
         'connection' => env('BEACON_REQUESTS_CONNECTION'),
         'retention_hours' => env('BEACON_REQUESTS_RETENTION_HOURS', 168),
         'middleware' => env('BEACON_REQUESTS_MIDDLEWARE', true),
+        'slow' => [
+            'threshold_ms' => env('BEACON_SLOW_REQUEST_THRESHOLD_MS', 1000),
+            'window_minutes' => env('BEACON_SLOW_REQUEST_WINDOW_MINUTES', 60),
+            'minimum_samples' => env('BEACON_SLOW_REQUEST_MINIMUM_SAMPLES', 5),
+            'default_limit' => env('BEACON_SLOW_REQUEST_LIMIT', 25),
+            'max_endpoints' => env('BEACON_SLOW_REQUEST_MAX_ENDPOINTS', 25),
+            // Route name, URI, or "METHOD /uri" keys mapped to milliseconds.
+            'endpoints' => [],
+        ],
     ],
 
     /*
@@ -288,6 +298,8 @@ return [
         'scheduler' => ['enabled' => true],
         'requests' => ['enabled' => true],
         'request_summary' => ['enabled' => true],
+        'slow_requests' => ['enabled' => true],
+        'slow_request_summary' => ['enabled' => true],
         'health' => ['enabled' => true],
     ],
 

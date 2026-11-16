@@ -603,7 +603,21 @@ Implemented. Also available as `php artisan beacon:request-summary`. Requires `r
 
 Summarizes the same inspected request window with counts by status, method, and route plus duration metrics. Allowing only `requests` does not grant this tool. Counts are not historical trends.
 
-Slow request detection and AI investigation context are not implemented.
+---
+
+## `beacon.get_slow_requests`
+
+Implemented. Also available as `php artisan beacon:slow-requests`. Requires `slow_requests`.
+
+Classifies recorded HTTP requests that exceeded configured duration thresholds from opt-in Beacon storage. Equality with the threshold is not slow. Returns excess duration, rank, and `correlationKind` of `exception` or `none`. Bodies, cookies, Authorization headers, and query strings are never stored or returned. Allowing only `requests` does not grant this tool. Filters: since, until, method, route, status, min_duration_ms, window_minutes, page, limit, max_endpoints.
+
+---
+
+## `beacon.get_slow_request_summary`
+
+Implemented. Also available as `php artisan beacon:slow-request-summary`. Requires `slow_request_summary`.
+
+Endpoint latency summaries for the inspected request window, including sample counts, slow counts, and duration metrics. p95 needs at least 5 samples. p99 needs at least 20 samples. Allowing only `requests` or `slow_requests` does not grant this tool. Counts are not historical trends. AI investigation context is not implemented.
 
 ---
 
@@ -635,6 +649,8 @@ beacon.get_failed_jobs
 beacon.get_scheduler_status
 beacon.get_recent_requests
 beacon.get_request_summary
+beacon.get_slow_requests
+beacon.get_slow_request_summary
 ```
 
 Avoid vague names such as:

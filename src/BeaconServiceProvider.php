@@ -25,6 +25,8 @@ use Beacon\Console\Commands\SchedulerCommand;
 use Beacon\Console\Commands\SchemaCommand;
 use Beacon\Console\Commands\SchemaCompareCommand;
 use Beacon\Console\Commands\SchemaSnapshotCommand;
+use Beacon\Console\Commands\SlowRequestsCommand;
+use Beacon\Console\Commands\SlowRequestSummaryCommand;
 use Beacon\Contracts\Authenticator;
 use Beacon\Contracts\Authorizer;
 use Beacon\Contracts\Redactor;
@@ -61,6 +63,8 @@ use Beacon\Inspectors\SchedulerInspector;
 use Beacon\Inspectors\SchemaComparisonInspector;
 use Beacon\Inspectors\SchemaInspector;
 use Beacon\Inspectors\SchemaSnapshotInspector;
+use Beacon\Inspectors\SlowRequestInspector;
+use Beacon\Inspectors\SlowRequestSummaryInspector;
 use Beacon\Logs\ExceptionCollector;
 use Beacon\Logs\LogFiles;
 use Beacon\Logs\LogReader;
@@ -162,6 +166,8 @@ final class BeaconServiceProvider extends ServiceProvider
             $inspectors->register(SchedulerInspector::NAME, SchedulerInspector::class);
             $inspectors->register(RequestInspector::NAME, RequestInspector::class);
             $inspectors->register(RequestSummaryInspector::NAME, RequestSummaryInspector::class);
+            $inspectors->register(SlowRequestInspector::NAME, SlowRequestInspector::class);
+            $inspectors->register(SlowRequestSummaryInspector::NAME, SlowRequestSummaryInspector::class);
         });
 
         $this->app->register(BeaconMcpServiceProvider::class);
@@ -205,6 +211,8 @@ final class BeaconServiceProvider extends ServiceProvider
                 SchedulerCommand::class,
                 RequestsCommand::class,
                 RequestSummaryCommand::class,
+                SlowRequestsCommand::class,
+                SlowRequestSummaryCommand::class,
                 RequestsPruneCommand::class,
                 CheckCommand::class,
                 InstallCommand::class,

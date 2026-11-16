@@ -58,7 +58,7 @@ final class StdioTransportTest extends TestCase
 
         $this->assertCount(2, $responses);
         $this->assertSame('Laravel Beacon', data_get($responses[0], 'result.serverInfo.name'));
-        $this->assertSame([self::APPLICATION_TOOL, 'beacon.get_environment', 'beacon.get_routes', 'beacon.get_config', 'beacon.get_health', 'beacon.get_database_status', 'beacon.get_database_schema', 'beacon.get_migrations', 'beacon.analyze_migration_risks', 'beacon.create_schema_snapshot', 'beacon.compare_schema_snapshots', 'beacon.get_runtime_info', 'beacon.get_recent_exceptions', 'beacon.get_error_aggregates', 'beacon.get_error_summary', 'beacon.get_log_summary', 'beacon.get_queue_status', 'beacon.get_failed_jobs', 'beacon.get_scheduler_status', 'beacon.get_recent_requests', 'beacon.get_request_summary'], array_column((array) data_get($responses[1], 'result.tools'), 'name'));
+        $this->assertSame([self::APPLICATION_TOOL, 'beacon.get_environment', 'beacon.get_routes', 'beacon.get_config', 'beacon.get_health', 'beacon.get_database_status', 'beacon.get_database_schema', 'beacon.get_migrations', 'beacon.analyze_migration_risks', 'beacon.create_schema_snapshot', 'beacon.compare_schema_snapshots', 'beacon.get_runtime_info', 'beacon.get_recent_exceptions', 'beacon.get_error_aggregates', 'beacon.get_error_summary', 'beacon.get_log_summary', 'beacon.get_queue_status', 'beacon.get_failed_jobs', 'beacon.get_scheduler_status', 'beacon.get_recent_requests', 'beacon.get_request_summary', 'beacon.get_slow_requests', 'beacon.get_slow_request_summary'], array_column((array) data_get($responses[1], 'result.tools'), 'name'));
     }
 
     #[Test]

@@ -17,6 +17,8 @@ final class RequestQuery
 
     public const MAX_SCAN = 200;
 
+    public const MAX_ANALYSIS = 1000;
+
     public const PARAMETERS = [
         'since',
         'until',
@@ -117,6 +119,32 @@ final class RequestQuery
             $correlation,
             $limit,
             $page,
+        );
+    }
+
+    /**
+     * Bounded window scan for analysis. Limit may exceed MAX_LIMIT up to MAX_ANALYSIS.
+     */
+    public static function analysis(
+        ?string $since,
+        ?string $until,
+        ?string $method,
+        ?string $route,
+        ?int $status,
+        ?int $minDurationMs,
+        int $scan = self::MAX_ANALYSIS,
+    ): self {
+        return new self(
+            $since,
+            $until,
+            $method,
+            $route,
+            $status,
+            $minDurationMs,
+            null,
+            null,
+            max(1, min(self::MAX_ANALYSIS, $scan)),
+            1,
         );
     }
 

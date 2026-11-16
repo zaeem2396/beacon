@@ -25,6 +25,8 @@ use Beacon\Mcp\Tools\GetRequestSummaryTool;
 use Beacon\Mcp\Tools\GetRoutesTool;
 use Beacon\Mcp\Tools\GetRuntimeInfoTool;
 use Beacon\Mcp\Tools\GetSchedulerStatusTool;
+use Beacon\Mcp\Tools\GetSlowRequestsTool;
+use Beacon\Mcp\Tools\GetSlowRequestSummaryTool;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Server\Tool;
 
@@ -64,6 +66,8 @@ final class BeaconMcpServiceProvider extends ServiceProvider
                 $registry->tool(GetSchedulerStatusTool::class);
                 $registry->tool(GetRecentRequestsTool::class);
                 $registry->tool(GetRequestSummaryTool::class);
+                $registry->tool(GetSlowRequestsTool::class);
+                $registry->tool(GetSlowRequestSummaryTool::class);
             }
         });
     }
