@@ -70,7 +70,7 @@ final class DatabaseRequestStore implements RequestStore
         $builder = $this->query()->orderByDesc('started_at')->orderByDesc('id');
         $this->applyFilters($builder, $query);
         $total = (int) (clone $builder)->count();
-        $needed = min(RequestQuery::MAX_SCAN, $query->limit * $query->page);
+        $needed = min(RequestQuery::MAX_ANALYSIS, $query->limit * $query->page);
         $rows = $builder->limit($needed)->get();
         $records = [];
 

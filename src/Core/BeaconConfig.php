@@ -271,6 +271,102 @@ final class BeaconConfig
         return $hours < 1 || $hours > 720 ? 168 : $hours;
     }
 
+    /**
+     * Default and endpoint-specific slow-request thresholds.
+     */
+    public function slowRequestThresholds(): \Beacon\Requests\SlowThresholds
+    {
+        $default = $this->config->get('beacon.requests.slow.threshold_ms', \Beacon\Requests\SlowThresholds::DEFAULT_MS);
+        $defaultMs = is_int($default) || (is_string($default) && ctype_digit($default))
+            ? (int) $default
+            : \Beacon\Requests\SlowThresholds::DEFAULT_MS;
+
+        if ($defaultMs < \Beacon\Requests\SlowThresholds::MIN_MS || $defaultMs > \Beacon\Requests\SlowThresholds::MAX_MS) {
+            $defaultMs = \Beacon\Requests\SlowThresholds::DEFAULT_MS;
+        }
+
+        $raw = $this->config->get('beacon.requests.slow.endpoints', []);
+        $endpoints = [];
+
+        if (is_array($raw)) {
+            foreach ($raw as $key => $value) {
+                if (! is_string($key) || $key === '') {
+                    continue;
+                }
+
+                if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+                    continue;
+                }
+
+                $ms = (int) $value;
+
+                if ($ms < \Beacon\Requests\SlowThresholds::MIN_MS || $ms > \Beacon\Requests\SlowThresholds::MAX_MS) {
+                    continue;
+                }
+
+                if (preg_match('#^[A-Za-z0-9_./{}: -]{1,191}$#', $key) !== 1) {
+                    continue;
+                }
+
+                $endpoints[$key] = $ms;
+            }
+        }
+
+        return new \Beacon\Requests\SlowThresholds($defaultMs, $endpoints);
+    }
+
+    public function slowRequestWindowMinutes(): int
+    {
+        $value = $this->config->get('beacon.requests.slow.window_minutes', 60);
+
+        if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+            return 60;
+        }
+
+        $minutes = (int) $value;
+
+        return $minutes < 1 || $minutes > 10080 ? 60 : $minutes;
+    }
+
+    public function slowRequestMinimumSamples(): int
+    {
+        $value = $this->config->get('beacon.requests.slow.minimum_samples', 5);
+
+        if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+            return 5;
+        }
+
+        $samples = (int) $value;
+
+        return $samples < 1 || $samples > 1000 ? 5 : $samples;
+    }
+
+    public function slowRequestLimit(): int
+    {
+        $value = $this->config->get('beacon.requests.slow.default_limit', 25);
+
+        if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+            return 25;
+        }
+
+        $limit = (int) $value;
+
+        return $limit < 1 || $limit > \Beacon\Requests\RequestQuery::MAX_LIMIT ? 25 : $limit;
+    }
+
+    public function slowRequestMaxEndpoints(): int
+    {
+        $value = $this->config->get('beacon.requests.slow.max_endpoints', 25);
+
+        if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+            return 25;
+        }
+
+        $max = (int) $value;
+
+        return $max < 1 || $max > 100 ? 25 : $max;
+    }
+
     public function healthCacheEnabled(): bool
     {
         return $this->bool('beacon.health.cache.enabled', false);

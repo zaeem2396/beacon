@@ -91,7 +91,7 @@ final class ArrayRequestStore implements RequestStore
             static fn (RequestObservation $left, RequestObservation $right): int => $right->startedAt <=> $left->startedAt,
         );
 
-        $needed = min(RequestQuery::MAX_SCAN, $query->limit * $query->page);
+        $needed = min(RequestQuery::MAX_ANALYSIS, $query->limit * $query->page);
 
         return [
             'records' => array_slice($filtered, 0, $needed),
