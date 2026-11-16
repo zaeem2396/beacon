@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v0.3.0 — 2026-11-16
+
+Runtime & Error Intelligence. Beacon can report runtime facts, recent exceptions, error aggregates, log summaries, queue status, failed jobs, scheduler definitions, opt-in request observations, slow-request classification, and a normalized investigation context. It does not invent root causes, deployment history, or configuration-change history.
+
+Deeper queue worker inspection and deployment intelligence are not in this release. They remain later roadmap items.
+
+The reported Beacon version still comes from Composer's installed-package metadata. A `v0.3.0` install reports `v0.3.0`. A branch install reports that branch, such as `dev-main`.
+
 ### Added
 
 - `beacon.get_runtime_info` and `php artisan beacon:runtime` report PHP and Laravel runtime facts plus allowlisted drivers. Capability: `runtime`.
