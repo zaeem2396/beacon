@@ -617,7 +617,15 @@ Classifies recorded HTTP requests that exceeded configured duration thresholds f
 
 Implemented. Also available as `php artisan beacon:slow-request-summary`. Requires `slow_request_summary`.
 
-Endpoint latency summaries for the inspected request window, including sample counts, slow counts, and duration metrics. p95 needs at least 5 samples. p99 needs at least 20 samples. Allowing only `requests` or `slow_requests` does not grant this tool. Counts are not historical trends. AI investigation context is not implemented.
+Endpoint latency summaries for the inspected request window, including sample counts, slow counts, and duration metrics. p95 needs at least 5 samples. p99 needs at least 20 samples. Allowing only `requests` or `slow_requests` does not grant this tool. Counts are not historical trends.
+
+---
+
+## `beacon.get_investigation_context`
+
+Implemented. Also available as `php artisan beacon:investigate`. Requires `investigation_context`.
+
+Builds a normalized investigation context (schema version 1) from existing Beacon modules. Entry points: `request_id`, `correlation_id`, `exception_id`, `fingerprint`, `endpoint`, `since`, `until`, `severity`, `window_minutes`, `max_results`. Multiple identifiers combine with AND. Primary subject priority is request_id, then correlation_id, then exception_id, then fingerprint, then endpoint, then the bounded time window. Distinguishes direct, inferred, and uncorrelated evidence. Includes timeline events, deterministic leads, source status, and missing-evidence notes. Does not claim a root cause. Does not invent deployment or configuration-change history. Bodies, cookies, Authorization headers, query strings, and failed-job payloads are never returned. Allowing only `requests`, `exceptions`, or `slow_requests` does not grant this tool.
 
 ---
 
@@ -651,6 +659,7 @@ beacon.get_recent_requests
 beacon.get_request_summary
 beacon.get_slow_requests
 beacon.get_slow_request_summary
+beacon.get_investigation_context
 ```
 
 Avoid vague names such as:

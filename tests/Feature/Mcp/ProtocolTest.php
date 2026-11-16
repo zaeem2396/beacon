@@ -21,7 +21,7 @@ final class ProtocolTest extends McpTestCase
      * Literal names: constant expressions are evaluated while PHPUnit builds
      * the suite, where tool classes cannot load without laravel/mcp.
      */
-    private const BUILT_IN_TOOLS = ['beacon.get_application_info', 'beacon.get_environment', 'beacon.get_routes', 'beacon.get_config', 'beacon.get_health', 'beacon.get_database_status', 'beacon.get_database_schema', 'beacon.get_migrations', 'beacon.analyze_migration_risks', 'beacon.create_schema_snapshot', 'beacon.compare_schema_snapshots', 'beacon.get_runtime_info', 'beacon.get_recent_exceptions', 'beacon.get_error_aggregates', 'beacon.get_error_summary', 'beacon.get_log_summary', 'beacon.get_queue_status', 'beacon.get_failed_jobs', 'beacon.get_scheduler_status', 'beacon.get_recent_requests', 'beacon.get_request_summary', 'beacon.get_slow_requests', 'beacon.get_slow_request_summary'];
+    private const BUILT_IN_TOOLS = ['beacon.get_application_info', 'beacon.get_environment', 'beacon.get_routes', 'beacon.get_config', 'beacon.get_health', 'beacon.get_database_status', 'beacon.get_database_schema', 'beacon.get_migrations', 'beacon.analyze_migration_risks', 'beacon.create_schema_snapshot', 'beacon.compare_schema_snapshots', 'beacon.get_runtime_info', 'beacon.get_recent_exceptions', 'beacon.get_error_aggregates', 'beacon.get_error_summary', 'beacon.get_log_summary', 'beacon.get_queue_status', 'beacon.get_failed_jobs', 'beacon.get_scheduler_status', 'beacon.get_recent_requests', 'beacon.get_request_summary', 'beacon.get_slow_requests', 'beacon.get_slow_request_summary', 'beacon.get_investigation_context'];
 
     #[Test]
     #[DefineEnvironment('enableMcp')]

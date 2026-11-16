@@ -15,17 +15,18 @@
 - `beacon.get_request_summary` and `php artisan beacon:request-summary` summarize the inspected request window. Capability: `request_summary`.
 - `beacon.get_slow_requests` and `php artisan beacon:slow-requests` classify recorded requests that exceeded configured duration thresholds. Capability: `slow_requests`. Equality with the threshold is not slow.
 - `beacon.get_slow_request_summary` and `php artisan beacon:slow-request-summary` summarize endpoint latency for the inspected window. Capability: `slow_request_summary`. p95 needs at least 5 samples. p99 needs at least 20 samples.
+- `beacon.get_investigation_context` and `php artisan beacon:investigate` build a normalized investigation context from existing Beacon evidence. Capability: `investigation_context`. Schema version 1. Distinguishes direct, inferred, and uncorrelated evidence. Does not claim a root cause. Reports deployment and configuration-change history as unavailable when Beacon has no real source.
 - `php artisan beacon:requests-prune` deletes old Beacon request rows using `beacon.requests.retention_hours`. Maintenance only; does not require the `requests` capability.
 - Publishable `beacon-migrations` tag for the dedicated `beacon_requests` table. Collection stays off until `BEACON_REQUESTS_COLLECTION=true`.
 
 ### Security
 
-- Runtime, exception, log, queue, failed-job, scheduler, request, and slow-request capabilities are default-deny and independent.
+- Runtime, exception, log, queue, failed-job, scheduler, request, slow-request, and investigation-context capabilities are default-deny and independent.
 - Log and exception reads are confined to configured file channels under `storage/logs`.
 - Failed-job inspection never selects or deserializes payloads and never retries jobs.
 - Scheduler inspection never runs scheduled tasks.
 - Request collection never stores bodies, cookies, Authorization headers, or query strings. Middleware registration alone does not collect.
-- Slow request tools never invent causes. AI investigation context remains pending.
+- Slow request tools and investigation context never invent causes. Investigation context never fabricates deployment or configuration-change history.
 
 ## v0.2.0 — 2026-11-14
 

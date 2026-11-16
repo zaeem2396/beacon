@@ -16,6 +16,7 @@ use Beacon\Mcp\Tools\GetErrorAggregatesTool;
 use Beacon\Mcp\Tools\GetErrorSummaryTool;
 use Beacon\Mcp\Tools\GetFailedJobsTool;
 use Beacon\Mcp\Tools\GetHealthTool;
+use Beacon\Mcp\Tools\GetInvestigationContextTool;
 use Beacon\Mcp\Tools\GetLogSummaryTool;
 use Beacon\Mcp\Tools\GetMigrationsTool;
 use Beacon\Mcp\Tools\GetQueueStatusTool;
@@ -68,6 +69,7 @@ final class BeaconMcpServiceProvider extends ServiceProvider
                 $registry->tool(GetRequestSummaryTool::class);
                 $registry->tool(GetSlowRequestsTool::class);
                 $registry->tool(GetSlowRequestSummaryTool::class);
+                $registry->tool(GetInvestigationContextTool::class);
             }
         });
     }
